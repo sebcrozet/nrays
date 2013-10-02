@@ -1,0 +1,6 @@
+[submodule "lib/ncollide"]
+	path = lib/ncollide
+	url = git://github.com/sebcrozet/ncollide.git
+[submodule "lib/nalgebra"]
+	path = lib/nalgebra
+	url = git://github.com/sebcrozet/nalgebra.git
