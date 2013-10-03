@@ -18,6 +18,7 @@ deps:
 test:
 	mkdir -p bin
 	$(build_cmd_opt) examples/sphere3d.rs
+	$(build_cmd_opt) examples/sphere4d.rs
 
 bench:
 	mkdir -p $(nrays_lib_path)

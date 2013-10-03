@@ -1,6 +1,6 @@
 use std::num::Zero;
 use std::vec;
-use nalgebra::vec::{AlgebraicVecExt, VecExt, Dim, Vec4, Vec, VecCast};
+use nalgebra::vec::{AlgebraicVecExt, VecExt, Dim, Vec4, Vec};
 use nalgebra::mat::{Translation, Rotate, Transform, AbsoluteRotate};
 use ncollide::bounding_volume::{AABB, HasAABB};
 use ncollide::partitioning::bvt;
@@ -11,16 +11,16 @@ use ncollide::ray::{Ray, RayCast, RayCastWithTransform};
 use scene_node::SceneNode;
 use image::Image;
 
-pub struct Scene<N, V, Vi, M> {
+pub struct Scene<N, V, Vlessi, M> {
     priv world: BVT<@SceneNode<N, V, M>, AABB<N, V>>
 }
 
-impl<N:  'static + NumCast + Primitive + Algebraic + Signed + Float + ToStr,
-     V:  'static + AlgebraicVecExt<N> + Clone + ToStr,
-     Vi: VecExt<uint> + VecCast<V> + Dim + Clone + ToStr,
-     M:  Translation<V> + Rotate<V> + Transform<V> + Mul<M, M> + AbsoluteRotate<V> + Dim>
-Scene<N, V, Vi, M> {
-    pub fn new(nodes: ~[@SceneNode<N, V, M>]) -> Scene<N, V, Vi, M> {
+impl<N:      'static + NumCast + Primitive + Algebraic + Signed + Float + ToStr,
+     V:      'static + AlgebraicVecExt<N> + Clone + ToStr,
+     Vlessi: VecExt<uint> + Dim + Clone + ToStr,
+     M:      Translation<V> + Rotate<V> + Transform<V> + Mul<M, M> + AbsoluteRotate<V> + Dim>
+Scene<N, V, Vlessi, M> {
+    pub fn new(nodes: ~[@SceneNode<N, V, M>]) -> Scene<N, V, Vlessi, M> {
         let mut nodes_w_bvs = ~[];
 
         for n in nodes.move_iter() {
@@ -35,31 +35,27 @@ Scene<N, V, Vi, M> {
         }
     }
 
-    pub fn render(&self, eye: &V, at: &V, extents: &V, resolution: &Vi, projection: &M) -> Image<Vi> {
+    pub fn render(&self, resolution: &Vlessi, unproject: &fn(&Vlessi) -> Ray<V>) -> Image<Vlessi> {
         let mut npixels = 1;
 
         for i in resolution.iter() {
             npixels = npixels * *i;
         }
 
-        let mut curr: Vi = Zero::zero();
+        let mut curr: Vlessi = Zero::zero();
 
         // Sample a rectangular n-1 surface (with n the rendering dimension):
         //   * a rectangle for 3d rendering.
         //   * a cube for 4d rendering.
         //   * an hypercube for 5d rendering.
         //   * etc
-        let principal_dir = (at - *eye).normalized();
         let mut pixels    = vec::with_capacity(npixels);
 
         for _ in range(0u, npixels) {
             // curr contains the index of the current sample point.
-            let ray_pos = VecCast::from(curr.clone()); // FIXME: this is obviously wrong!
-            let ray_dir = principal_dir.clone();
+            pixels.push(self.trace(&unproject(&curr)));
 
-            pixels.push(self.trace(&Ray::new(ray_pos, ray_dir)));
-
-            for j in range(0u, Dim::dim(None::<V>)) {
+            for j in range(0u, Dim::dim(None::<Vlessi>)) {
                 let inc = curr.at(j) + 1;
 
                 if inc == resolution.at(j) {
@@ -95,7 +91,7 @@ Scene<N, V, Vi, M> {
                 None => { },
                 Some(toi) => {
                     if toi < mintoi {
-                        mintoi = toi;
+                        mintoi       = toi;
                         intersection = Some(i);
                     }
                 }

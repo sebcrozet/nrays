@@ -1,4 +1,5 @@
-use nalgebra::vec::Vec4;
+use nalgebra::vec::{VecCast, Indexable, Vec2, Vec4};
+use std::io::Writer;
 
 pub struct Image<Vi> {
     priv extents: Vi, // extents of the rendering cube
@@ -10,6 +11,27 @@ impl<Vi> Image<Vi> {
         Image {
             extents: extents,
             pixels:  pixels
+        }
+    }
+}
+
+impl Image<Vec2<uint>> {
+    pub fn to_ppm(&self, w: @Writer) {
+        let width  = self.extents.at(1);
+        let height = self.extents.at(0);
+
+        w.write_str("P3\n");
+        w.write_str(width.to_str() + " " + height.to_str() + "\n");
+        w.write_str("255\n");
+
+        for i in range(0u, height) {
+            for j in range(0u, width) {
+                let px: Vec4<uint> = VecCast::from(self.pixels[i * width + j] * 255.0);
+
+                w.write_str(px.x.to_str() + " " + px.y.to_str() + " " + px.z.to_str() + " ");
+            }
+
+            w.write_char('\n');
         }
     }
 }
