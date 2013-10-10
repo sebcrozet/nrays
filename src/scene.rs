@@ -1,7 +1,8 @@
 use std::num::Zero;
 use std::vec;
-use nalgebra::vec::{AlgebraicVecExt, VecExt, Dim, Vec4, Vec};
-use nalgebra::mat::{Translation, Rotate, Transform, AbsoluteRotate};
+use nalgebra::na::{Cast, Vec, VecExt, AlgebraicVecExt, AbsoluteRotate, Dim, Transform, Rotate,
+                   Translation, Vec4, Vec3};
+use nalgebra::na;
 use ncollide::bounding_volume::{AABB, HasAABB};
 use ncollide::partitioning::bvt;
 use ncollide::partitioning::bvt::BVT;
@@ -10,17 +11,20 @@ use ncollide::partitioning::bvt_visitor::BVTVisitor;
 use ncollide::ray::{Ray, RayCast, RayCastWithTransform};
 use scene_node::SceneNode;
 use image::Image;
+use light::Light;
 
 pub struct Scene<N, V, Vlessi, M> {
-    priv world: BVT<@SceneNode<N, V, M>, AABB<N, V>>
+    priv lights: ~[Light<V>],
+    priv world:  BVT<@SceneNode<N, V, M>, AABB<N, V>>
 }
 
-impl<N:      'static + NumCast + Primitive + Algebraic + Signed + Float + ToStr,
+impl<N:      'static + Cast<f32> + NumCast + Primitive + Algebraic + Signed + Float + ToStr,
      V:      'static + AlgebraicVecExt<N> + Clone + ToStr,
      Vlessi: VecExt<uint> + Dim + Clone + ToStr,
      M:      Translation<V> + Rotate<V> + Transform<V> + Mul<M, M> + AbsoluteRotate<V> + Dim>
 Scene<N, V, Vlessi, M> {
-    pub fn new(nodes: ~[@SceneNode<N, V, M>]) -> Scene<N, V, Vlessi, M> {
+    pub fn new(nodes:  ~[@SceneNode<N, V, M>],
+               lights: ~[Light<V>]) -> Scene<N, V, Vlessi, M> {
         let mut nodes_w_bvs = ~[];
 
         for n in nodes.move_iter() {
@@ -31,7 +35,8 @@ Scene<N, V, Vlessi, M> {
         let bvt = BVT::new_with_partitioner(nodes_w_bvs, bvt::dim_pow_2_aabb_partitioner);
 
         Scene {
-            world: bvt
+            lights: lights,
+            world:  bvt
         }
     }
 
@@ -83,15 +88,17 @@ Scene<N, V, Vlessi, M> {
          * Nothing fancy at the moment: simply return the color of the first object hit by the ray.
          */
         let mut intersection = None;
-        let mut mintoi: N    = Bounded::max_value();
+        let mut mintoi:    N    = Bounded::max_value();
+        let mut minnormal: V    = Zero::zero();
         for i in interferences.iter() {
-            let toi = i.geometry.toi_with_transform_and_ray(&i.transform, ray);
+            let toi = i.geometry.toi_and_normal_with_transform_and_ray(&i.transform, ray);
 
             match toi {
                 None => { },
-                Some(toi) => {
+                Some((toi, normal)) => {
                     if toi < mintoi {
                         mintoi       = toi;
+                        minnormal    = normal;
                         intersection = Some(i);
                     }
                 }
@@ -99,10 +106,62 @@ Scene<N, V, Vlessi, M> {
         }
 
         match intersection {
-            None    => Vec4::new(0.0, 0.0, 0.0, 0.0),
-            Some(i) => i.material.diffuse_color.clone()
+            None    => Vec4::new(0.0, 0.0, 0.0, 1.0),
+            Some(i) => {
+                // FIXME: create a shader system to handle lighting
+                let _ = self.compute_lighting_from(*i, &(ray.orig + ray.dir * mintoi), &minnormal);
+
+                // FIXME: we use NumCast here since the structs::spec::f64Cast trait is private…
+                // Find a way to fix that on nalgebra.
+                let mut color: Vec3<f64> = na::vec3(NumCast::from(minnormal.at(0)).unwrap(),
+                                                    NumCast::from(minnormal.at(1)).unwrap(),
+                                                    NumCast::from(minnormal.at(2)).unwrap());
+
+                color = (color + 1.0) / 2.0;
+
+                na::to_homogeneous(&color)
+                // light + i.material.diffuse_color
+            }
         }
     }
+
+    pub fn compute_lighting_from(&self, _: @SceneNode<N, V, M>, point: &V, _: &V) -> Vec4<f64> {
+        let mut interferences: ~[@SceneNode<N, V, M>] = ~[];
+
+        let mut color = Vec4::new(0.0f64, 0.0, 0.0, 0.0);
+
+        'loop: for l in self.lights.iter() {
+            interferences.clear();
+
+            let ray = Ray::new(l.pos.clone(), *point - l.pos);
+
+            {
+                let mut collector = RayInterferencesCollector::new(&ray, &mut interferences);
+                self.world.visit(&mut collector);
+            }
+
+            for i in interferences.iter() {
+                if true { // !managed::ptr_eq(*i, node)
+                    let toi = i.geometry.toi_with_transform_and_ray(&i.transform, &ray);
+                    match toi {
+                        None      => { },
+                        Some(toi) => {
+                            if toi < na::cast(0.75 - 0.00001) {
+                                continue 'loop;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // FIXME: we use NumCast here since the structs::spec::f64Cast trait is private…
+            // Find a way to fix that on nalgebra.
+            let distance_to_light: f64 = NumCast::from((*point - l.pos).norm()).unwrap();
+            color = color + na::to_homogeneous(&(l.color * (1.0 - distance_to_light / 5.0)));
+        }
+
+            color
+        }
 }
 
 /*

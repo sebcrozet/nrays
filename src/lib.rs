@@ -12,3 +12,4 @@ extern mod ncollide;
 pub mod scene_node;
 pub mod scene;
 pub mod image;
+pub mod light;

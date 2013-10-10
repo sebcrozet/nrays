@@ -1,4 +1,5 @@
-use nalgebra::vec::{VecCast, Indexable, Vec2, Vec4};
+use nalgebra::na::{Indexable, Vec2, Vec3, Vec4};
+use nalgebra::na;
 use std::io::Writer;
 
 pub struct Image<Vi> {
@@ -26,7 +27,9 @@ impl Image<Vec2<uint>> {
 
         for i in range(0u, height) {
             for j in range(0u, width) {
-                let px: Vec4<uint> = VecCast::from(self.pixels[i * width + j] * 255.0);
+                let h_c            = &self.pixels[i * width + j];
+                let c:  Vec3<f64>  = na::from_homogeneous(h_c);
+                let px: Vec3<uint> = na::cast(c * 255.0);
 
                 w.write_str(px.x.to_str() + " " + px.y.to_str() + " " + px.z.to_str() + " ");
             }

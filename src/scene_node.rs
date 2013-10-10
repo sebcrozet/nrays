@@ -1,5 +1,5 @@
 use ncollide::geom::Geom;
-use nalgebra::vec::Vec4;
+use nalgebra::na::Vec4;
 
 pub struct Material {
     diffuse_color: Vec4<f64>
