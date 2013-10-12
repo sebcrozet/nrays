@@ -81,6 +81,6 @@ fn main() {
         Ray::new(eye, na::normalized(&(at - eye)))
     });
 
-    let file = io::buffered_file_writer(&PosixPath("out.ppm")).expect("Cannot open the output file.");
+    let file = io::file_writer(&PosixPath("out.ppm"), [io::Create]).expect("Cannot open the output file.");
     pixels.to_ppm(file);
 }

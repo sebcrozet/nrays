@@ -4,11 +4,11 @@ nrays_rs=src/lib.rs
 nrays_lib_path=lib
 ncollide_lib_path=./lib/ncollide/lib
 nalgebra_lib_path=./lib/nalgebra/lib
-build_cmd_opt=rust build -Llib -L$(nalgebra_lib_path) -L$(ncollide_lib_path) --out-dir bin --opt-level 3
+build_cmd_opt=rustc -Llib -L$(nalgebra_lib_path) -L$(ncollide_lib_path) --out-dir bin --opt-level 3
 
 all:
 	mkdir -p $(nrays_lib_path)
-	rust build $(nrays_rs) -L$(nalgebra_lib_path) -L$(ncollide_lib_path) --out-dir $(nrays_lib_path) --opt-level 3
+	rustc $(nrays_rs) -L$(nalgebra_lib_path) -L$(ncollide_lib_path) --out-dir $(nrays_lib_path) --opt-level 3
 
 deps:
 	make -C ./lib/nalgebra
