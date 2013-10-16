@@ -113,9 +113,9 @@ Scene<N, V, Vlessi, M> {
 
                 // FIXME: we use NumCast here since the structs::spec::f64Cast trait is private…
                 // Find a way to fix that on nalgebra.
-                let mut color: Vec3<f64> = na::vec3(NumCast::from(minnormal.at(0)).unwrap(),
-                                                    NumCast::from(minnormal.at(1)).unwrap(),
-                                                    NumCast::from(minnormal.at(2)).unwrap());
+                let mut color: Vec3<f64> = Vec3::new(NumCast::from(minnormal.at(0)).unwrap(),
+                                                     NumCast::from(minnormal.at(1)).unwrap(),
+                                                     NumCast::from(minnormal.at(2)).unwrap());
 
                 color = (color + 1.0) / 2.0;
 
@@ -156,7 +156,7 @@ Scene<N, V, Vlessi, M> {
 
             // FIXME: we use NumCast here since the structs::spec::f64Cast trait is private…
             // Find a way to fix that on nalgebra.
-            let distance_to_light: f64 = NumCast::from((*point - l.pos).norm()).unwrap();
+            let distance_to_light: f64 = NumCast::from(na::norm(&(*point - l.pos))).unwrap();
             color = color + na::to_homogeneous(&(l.color * (1.0 - distance_to_light / 5.0)));
         }
 
