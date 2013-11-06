@@ -85,12 +85,9 @@ Scene<N, V, Vlessi, M> {
             self.world.visit(&mut collector);
         }
 
-        /*
-         * Nothing fancy at the moment: simply return the color of the first object hit by the ray.
-         */
         let mut intersection = None;
-        let mut mintoi:    N    = Bounded::max_value();
-        let mut minnormal: V    = Zero::zero();
+        let mut mintoi:    N = Bounded::max_value();
+        let mut minnormal: V = na::zero();
         for i in interferences.iter() {
             let toi = i.geometry.toi_and_normal_with_transform_and_ray(&i.transform, ray);
 
