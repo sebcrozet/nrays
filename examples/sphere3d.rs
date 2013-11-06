@@ -3,13 +3,13 @@
        , author = "Sébastien Crozet"
        , uuid   = "cf8cfe5d-18ca-40cb-b596-d8790090a56d")];
 #[crate_type = "bin"];
-#[warn(non_camel_case_types)]
+#[warn(non_camel_case_types)];
 
 extern mod nalgebra;
 extern mod ncollide;
 extern mod nrays;
 
-use std::io;
+use std::rt::io::fs::File;
 use nalgebra::na::{Iso3, Vec2, Vec3, Vec4, Mat4, Inv};
 use nalgebra::na;
 use ncollide::ray::Ray;
@@ -17,11 +17,6 @@ use ncollide::geom::{Geom, Ball, Box, Cone, Cylinder};
 use nrays::scene_node::{Material, SceneNode};
 use nrays::scene::Scene;
 use nrays::light::Light;
-
-#[start]
-fn start(argc: int, argv: **u8) -> int {
-    std::rt::start_on_main_thread(argc, argv, main)
-}
 
 fn main() {
     let resolution = Vec2::new(1024u, 1024);
@@ -81,6 +76,8 @@ fn main() {
         Ray::new(eye, na::normalize(&(at - eye)))
     });
 
-    let file = io::file_writer(&Path::new("out.ppm"), [io::Create]).expect("Cannot open the output file.");
-    pixels.to_ppm(file);
+
+    let path = "out.ppm";
+    let mut file = File::create(&Path::new(path)).expect("Cannot create the file: " + path);
+    pixels.to_ppm(&mut file);
 }

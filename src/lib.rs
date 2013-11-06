@@ -3,7 +3,8 @@
        , author = "Sébastien Crozet"
        , uuid   = "3d5ca519-5558-4ab7-8880-e7a4b62ad2c4")];
 #[crate_type = "lib"];
-#[warn(non_camel_case_types)]
+#[warn(non_camel_case_types)];
+#[feature(managed_boxes)];
 
 extern mod extra;
 extern mod nalgebra;

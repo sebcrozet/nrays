@@ -1,4 +1,4 @@
-#[link(name     = "sphere3d"
+#[link(name     = "sphere4d"
        , vers   = "0.0"
        , author = "Sébastien Crozet"
        , uuid   = "cf8cfe5d-18ca-40cb-b596-d8790090a56d")];

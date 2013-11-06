@@ -110,12 +110,11 @@ Scene<N, V, Vlessi, M> {
             None    => Vec4::new(0.0, 0.0, 0.0, 1.0),
             Some(i) => {
                 // FIXME: create a shader system to handle lighting
-               // self.compute_lighting_from(*i, &(ray.orig + ray.dir * mintoi), &minnormal)
-               let cos_angle = na::dot(&ray.dir, &minnormal) / (na::norm(&ray.dir) *
-                                                                 na::norm(&minnormal));
+                // self.compute_lighting_from(*i, &(ray.orig + ray.dir * mintoi), &minnormal)
+                let cos_angle = na::dot(&ray.dir, &minnormal) / (na::norm(&ray.dir) * na::norm(&minnormal));
 
-               // // FIXME: we use NumCast here since the structs::spec::f64Cast trait is private…
-               // // Find a way to fix that on nalgebra.
+                // FIXME: we use NumCast here since the structs::spec::f64Cast trait is private…
+                // Find a way to fix that on nalgebra.
                 let mut color: Vec3<f64> = Vec3::new(NumCast::from(-cos_angle).unwrap(), 0., 0.);
                 na::to_homogeneous(&color)
             }
@@ -158,8 +157,8 @@ Scene<N, V, Vlessi, M> {
             color = color + na::to_homogeneous(&(l.color * (1.0 - distance_to_light / 5.0)));
         }
 
-            color
-        }
+        color
+    }
 }
 
 /*
