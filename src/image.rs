@@ -4,11 +4,11 @@ use std::rt::io::Writer;
 
 pub struct Image<Vi> {
     priv extents: Vi, // extents of the rendering cube
-    priv pixels:  ~[Vec4<f64>]
+    priv pixels:  ~[Vec4<f32>]
 }
 
 impl<Vi> Image<Vi> {
-    pub fn new(extents: Vi, pixels: ~[Vec4<f64>]) -> Image<Vi> {
+    pub fn new(extents: Vi, pixels: ~[Vec4<f32>]) -> Image<Vi> {
         Image {
             extents: extents,
             pixels:  pixels
@@ -30,8 +30,8 @@ impl Image<Vec2<uint>> {
         for i in range(0u, height) {
             for j in range(0u, width) {
                 let h_c              = &self.pixels[i * width + j];
-                let c:     Vec3<f64> = na::from_homogeneous(h_c);
-                let color: Vec3<f64> = na::cast(c * 255.0);
+                let c:     Vec3<f32> = na::from_homogeneous(h_c);
+                let color: Vec3<f32> = na::cast(c * 255.0f32);
                 let white            = Vec3::new(255.0, 255.0, 255.0);
                 let valid_color      = color.clamp(&na::zero(), &white);
                 let px: Vec3<uint> = na::cast(valid_color);

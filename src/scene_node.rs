@@ -1,26 +1,17 @@
 use ncollide::geom::Geom;
-use nalgebra::na::Vec4;
+use material::Material;
 
-pub struct Material {
-    diffuse_color: Vec4<f64>
-}
-
-impl Material {
-    pub fn new(diffuse_color: Vec4<f64>) -> Material {
-        Material {
-            diffuse_color: diffuse_color
-        }
-    }
-}
-
-pub struct SceneNode<N, V, M> {
-    material:  Material,
+pub struct SceneNode<N, V, Vlessi, M> {
+    material:  @Material<N, V, Vlessi, M>,
     transform: M,
     geometry:  Geom<N, V, M>
 }
 
-impl<N, V, M> SceneNode<N, V, M> {
-    pub fn new(material: Material, transform: M, geometry: Geom<N, V, M>) -> SceneNode<N, V, M> {
+impl<N, V, Vlessi, M> SceneNode<N, V, Vlessi, M> {
+    pub fn new(material:  @Material<N, V, Vlessi, M>,
+               transform: M,
+               geometry:  Geom<N, V, M>)
+               -> SceneNode<N, V, Vlessi, M> {
         SceneNode {
             material:  material,
             transform: transform,
