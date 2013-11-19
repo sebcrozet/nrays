@@ -1,4 +1,3 @@
-use std::num::Zero;
 use std::vec;
 use nalgebra::na::{Cast, Vec, VecExt, AlgebraicVecExt, AbsoluteRotate, Dim, Transform, Rotate,
                    Translation, Vec4};
@@ -13,18 +12,18 @@ use scene_node::SceneNode;
 use image::Image;
 use light::Light;
 
-pub struct Scene<N, V, Vlessi, M> {
+pub struct Scene<N, V, Vless, M> {
     priv lights: ~[Light<V>],
-    priv world:  BVT<@SceneNode<N, V, Vlessi, M>, AABB<N, V>>
+    priv world:  BVT<@SceneNode<N, V, Vless, M>, AABB<N, V>>
 }
 
-impl<N:      'static + Cast<f32> + Send + Freeze + NumCast + Primitive + Algebraic + Signed + Float + ToStr,
-     V:      'static + AlgebraicVecExt<N> + Send + Freeze + Clone + ToStr,
-     Vlessi: VecExt<uint> + Dim + Clone + ToStr,
-     M:      Translation<V> + Rotate<V> + Send + Freeze + Transform<V> + Mul<M, M> + AbsoluteRotate<V> + Dim>
-Scene<N, V, Vlessi, M> {
-    pub fn new(nodes:  ~[@SceneNode<N, V, Vlessi, M>],
-               lights: ~[Light<V>]) -> Scene<N, V, Vlessi, M> {
+impl<N:     'static + Cast<f32> + Send + Freeze + NumCast + Primitive + Algebraic + Signed + Float,
+     V:     'static + AlgebraicVecExt<N> + Send + Freeze + Clone,
+     Vless: VecExt<N> + Dim + Clone,
+     M:     Translation<V> + Rotate<V> + Send + Freeze + Transform<V> + Mul<M, M> + AbsoluteRotate<V> + Dim>
+Scene<N, V, Vless, M> {
+    pub fn new(nodes:  ~[@SceneNode<N, V, Vless, M>],
+               lights: ~[Light<V>]) -> Scene<N, V, Vless, M> {
         let mut nodes_w_bvs = ~[];
 
         for n in nodes.move_iter() {
@@ -40,32 +39,32 @@ Scene<N, V, Vlessi, M> {
         }
     }
 
-    pub fn render(&self, resolution: &Vlessi, unproject: &fn(&Vlessi) -> Ray<V>) -> Image<Vlessi> {
-        let mut npixels = 1;
+    pub fn render(&self, resolution: &Vless, unproject: &fn(&Vless) -> Ray<V>) -> Image<Vless> {
+        let mut npixels: N = na::one();
 
         for i in resolution.iter() {
             npixels = npixels * *i;
         }
 
-        let mut curr: Vlessi = Zero::zero();
+        let mut curr: Vless = na::zero();
 
         // Sample a rectangular n-1 surface (with n the rendering dimension):
         //   * a rectangle for 3d rendering.
         //   * a cube for 4d rendering.
         //   * an hypercube for 5d rendering.
         //   * etc
-        let mut pixels    = vec::with_capacity(npixels);
+        let mut pixels    = vec::with_capacity(NumCast::from(npixels.clone()).unwrap());
 
-        for _ in range(0u, npixels) {
+        for _ in range(0u, NumCast::from(npixels).unwrap()) {
             // curr contains the index of the current sample point.
             let c = self.trace(&unproject(&curr));
             pixels.push(c);
 
-            for j in range(0u, Dim::dim(None::<Vlessi>)) {
-                let inc = curr.at(j) + 1;
+            for j in range(0u, Dim::dim(None::<Vless>)) {
+                let inc = curr.at(j) + na::one();
 
                 if inc == resolution.at(j) {
-                    curr.set(j, 0);
+                    curr.set(j, na::zero());
                 }
                 else {
                     curr.set(j, inc);
@@ -78,7 +77,7 @@ Scene<N, V, Vlessi, M> {
     }
 
     pub fn trace(&self, ray: &Ray<V>) -> Vec4<f32> {
-        let mut interferences: ~[@SceneNode<N, V, Vlessi, M>] = ~[];
+        let mut interferences: ~[@SceneNode<N, V, Vless, M>] = ~[];
 
         {
             let mut collector = RayInterferencesCollector::new(ray, &mut interferences);
@@ -107,7 +106,7 @@ Scene<N, V, Vlessi, M> {
             None     => Vec4::new(0.0, 0.0, 0.0, 1.0),
             Some(sn) => {
                 let inter = ray.orig + ray.dir * mintoi;
-                sn.material.compute(&inter, &minnormal, self)
+                sn.material.compute(ray, &inter, &minnormal, self)
                 // // FIXME: create a shader system to handle lighting
                 // // self.compute_lighting_from(*i, &(ray.orig + ray.dir * mintoi), &minnormal)
                 // let cos_angle = na::dot(&ray.dir, &minnormal) / (na::norm(&ray.dir) * na::norm(&minnormal));
@@ -120,8 +119,8 @@ Scene<N, V, Vlessi, M> {
         }
     }
 
-    pub fn compute_lighting_from(&self, _: @SceneNode<N, V, Vlessi, M>, point: &V, _: &V) -> Vec4<f32> {
-        let mut interferences: ~[@SceneNode<N, V, Vlessi, M>] = ~[];
+    pub fn compute_lighting_from(&self, _: @SceneNode<N, V, Vless, M>, point: &V, _: &V) -> Vec4<f32> {
+        let mut interferences: ~[@SceneNode<N, V, Vless, M>] = ~[];
 
         let mut color = Vec4::new(0.0f32, 0.0, 0.0, 1.0);
 
