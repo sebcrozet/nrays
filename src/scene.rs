@@ -39,6 +39,13 @@ Scene<N, V, Vless, M> {
         }
     }
 
+    #[inline]
+    pub fn lights<'a>(&'a self) -> &'a [Light<V>] {
+        let res: &'a [Light<V>] = self.lights;
+
+        res
+    }
+
     pub fn render(&self, resolution: &Vless, unproject: &fn(&Vless) -> Ray<V>) -> Image<Vless> {
         let mut npixels: N = na::one();
 
@@ -107,54 +114,8 @@ Scene<N, V, Vless, M> {
             Some(sn) => {
                 let inter = ray.orig + ray.dir * mintoi;
                 sn.material.compute(ray, &inter, &minnormal, self)
-                // // FIXME: create a shader system to handle lighting
-                // // self.compute_lighting_from(*i, &(ray.orig + ray.dir * mintoi), &minnormal)
-                // let cos_angle = na::dot(&ray.dir, &minnormal) / (na::norm(&ray.dir) * na::norm(&minnormal));
-
-                // // FIXME: we use NumCast here since the structs::spec::f64Cast trait is private…
-                // // Find a way to fix that on nalgebra.
-                // let color: Vec3<f32> = Vec3::new(NumCast::from(-cos_angle).unwrap(), 0., 0.);
-                // na::to_homogeneous(&color)
             }
         }
-    }
-
-    pub fn compute_lighting_from(&self, _: @SceneNode<N, V, Vless, M>, point: &V, _: &V) -> Vec4<f32> {
-        let mut interferences: ~[@SceneNode<N, V, Vless, M>] = ~[];
-
-        let mut color = Vec4::new(0.0f32, 0.0, 0.0, 1.0);
-
-        'loop: for l in self.lights.iter() {
-            interferences.clear();
-
-            let ray = Ray::new(l.pos.clone(), *point - l.pos);
-
-            {
-                let mut collector = RayInterferencesCollector::new(&ray, &mut interferences);
-                self.world.visit(&mut collector);
-            }
-
-            for i in interferences.iter() {
-                if true { // !managed::ptr_eq(*i, node)
-                    let toi = i.geometry.toi_with_transform_and_ray(&i.transform, &ray);
-                    match toi {
-                        None      => { },
-                        Some(_/* toi */) => {
-                           // if toi < na::cast(0.75 - 0.00001) {
-                           //     continue 'loop;
-                           // }
-                        }
-                    }
-                }
-            }
-
-            // FIXME: we use NumCast here since the structs::spec::f64Cast trait is private…
-            // Find a way to fix that on nalgebra.
-            let distance_to_light: f32 = NumCast::from(na::norm(&(*point - l.pos))).expect("(0) Conversion failed.");
-            color = color + na::to_homogeneous(&(l.color * (1.0 - distance_to_light / 5.0)));
-        }
-
-        color
     }
 }
 

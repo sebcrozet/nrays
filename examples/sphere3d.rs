@@ -18,6 +18,7 @@ use ncollide::geom::Geom;
 use nrays::scene_node::SceneNode;
 use nrays::material::Material3d;
 use nrays::normal_material::NormalMaterial;
+use nrays::phong_material::PhongMaterial;
 use nrays::scene::Scene;
 use nrays::light::Light;
 
@@ -27,10 +28,14 @@ fn main() {
     let mut nodes  = ~[];
 
     {
-        lights.push(Light::new(Vec3::new(0.0f64, 2.0, 10.0),
-                               Vec3::new(1.0f32, 0.0, 0.0)));
-        // lights.push(Light::new(Vec3::new(-10.0f64, 10.0, 10.0),
-        //                        Vec3::new(0.0, 1.0, 0.0)));
+        lights.push(Light::new(Vec3::new(10.0f64, -10.0, 10.0),
+                               Vec3::new(0.0, 1.0, 0.0)));
+        lights.push(Light::new(Vec3::new(-10.0f64, -10.0, 10.0),
+                               Vec3::new(0.0, 1.0, 1.0)));
+        lights.push(Light::new(Vec3::new(10.0f64, 10.0, 10.0),
+                               Vec3::new(1.0, 1.0, 0.0)));
+        lights.push(Light::new(Vec3::new(-10.0f64, 10.0, 10.0),
+                               Vec3::new(1.0, 1.0, 1.0)));
     }
 
     {
@@ -38,6 +43,23 @@ fn main() {
         // let red_material = Material::new(Vec4::new(1.0f64, 0.0, 0.0, 1.0));
         // let blue_material = Material::new(Vec4::new(0.0f64, 0.0, 1.0, 1.0));
         // let green_material = Material::new(Vec4::new(0.0f64, 1.0, 0.0, 1.0));
+        let blue = @PhongMaterial::new(
+            Vec3::new(1.0, 1.0, 1.0),
+            Vec3::new(1.0, 1.0, 1.0),
+            0.5,
+            0.3,
+            0.2,
+            10.0
+        ) as Material3d<f64>;
+
+        let red = @PhongMaterial::new(
+            Vec3::new(1.0, 1.0, 1.0),
+            Vec3::new(1.0, 1.0, 1.0),
+            0.5,
+            0.3,
+            0.2,
+            10.0
+        ) as Material3d<f64>;
 
         let normal_material = @NormalMaterial::new() as Material3d<f64>;
         let transform: Iso3<f64> = na::one();
@@ -52,11 +74,11 @@ fn main() {
         // FIXME: new_capsule is missing from ncollide
         // let capsule: G = Geom::new_capsule(Capsule::new(1.0f64, 1.0f64));
 
-        nodes.push(@SceneNode::new(normal_material, na::append_translation(&transform, &Vec3::new(0.0f64, 0.0, 15.0)), ball));
+        nodes.push(@SceneNode::new(blue, na::append_translation(&transform, &Vec3::new(0.0f64, 0.0, 15.0)), ball));
         nodes.push(@SceneNode::new(normal_material, na::append_translation(&transform, &Vec3::new(-4.0f64, 0.0, 15.0)), box));
         nodes.push(@SceneNode::new(normal_material, na::append_translation(&transform, &Vec3::new(4.0f64, 0.0, 15.0)), cone));
-        nodes.push(@SceneNode::new(normal_material, na::append_translation(&transform, &Vec3::new(0.0f64, -4.0f64, 15.0)), cylinder));
-        nodes.push(@SceneNode::new(normal_material,  na::append_translation(&transform, &Vec3::new(0.0f64, 1.5f64, 15.0)), plane));
+        nodes.push(@SceneNode::new(blue, na::append_translation(&transform, &Vec3::new(0.0f64, -4.0f64, 15.0)), cylinder));
+        nodes.push(@SceneNode::new(red,  na::append_translation(&transform, &Vec3::new(0.0f64, 1.5f64, 15.0)), plane));
         // nodes.push(@SceneNode::new(green_material, transform.translated(&Vec3::new(0.0f64, 5.0f64, 15.0)), capsule));
     }
 
