@@ -51,25 +51,28 @@ Material<N, V, Vless, M> for PhongMaterial {
         // compute the contribution of each light
         for light in scene.lights().iter() {
             let ldir = na::normalize(&(light.pos - *point));
-            let dot_ldir_norm = na::dot(&ldir, normal);
 
-            // diffuse
-            let dcoeff: f32 = NumCast::from(dot_ldir_norm.clone()).unwrap();
-            let dcoeff = dcoeff.max(&0.0);
-            let diffuse = (light.color * self.diffuse_color) * self.diffuse_intensity * dcoeff;
+            if !scene.intersects_ray(&Ray::new(point + ldir * na::cast(0.001), ldir.clone())) {
+                let dot_ldir_norm = na::dot(&ldir, normal);
 
-            // specular
-            let lproj = normal * dot_ldir_norm;
-            let rldir = na::normalize(&(-ldir + lproj * na::cast(2.0)));
+                // diffuse
+                let dcoeff: f32 = NumCast::from(dot_ldir_norm.clone()).unwrap();
+                let dcoeff = dcoeff.max(&0.0);
+                let diffuse = (light.color * self.diffuse_color) * self.diffuse_intensity * dcoeff;
 
-            let scoeff: f32 = NumCast::from(-na::dot(&rldir, &ray.ray.dir)).unwrap();
-            if scoeff > na::zero() {
-                let scoeff   = scoeff.pow(&self.alpha);
-                let specular = light.color * self.specular_intensity * scoeff;
-                res = res + diffuse + specular;
-            }
-            else {
-                res = res + diffuse;
+                // specular
+                let lproj = normal * dot_ldir_norm;
+                let rldir = na::normalize(&(-ldir + lproj * na::cast(2.0)));
+
+                let scoeff: f32 = NumCast::from(-na::dot(&rldir, &ray.ray.dir)).unwrap();
+                if scoeff > na::zero() {
+                    let scoeff   = scoeff.pow(&self.alpha);
+                    let specular = light.color * self.specular_intensity * scoeff;
+                    res = res + diffuse + specular;
+                }
+                else {
+                    res = res + diffuse;
+                }
             }
         }
 

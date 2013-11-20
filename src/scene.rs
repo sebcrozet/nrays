@@ -85,7 +85,26 @@ Scene<N, V, Vless, M> {
         Image::new(resolution.clone(), pixels)
     }
 
+    pub fn intersects_ray(&self, ray: &Ray<V>) -> bool {
+        // FIXME: avoid allocations
+        let mut interferences: ~[@SceneNode<N, V, Vless, M>] = ~[];
+
+        {
+            let mut collector = RayInterferencesCollector::new(ray, &mut interferences);
+            self.world.visit(&mut collector);
+        }
+
+        for i in interferences.iter() {
+            if i.geometry.intersects_with_transform_and_ray(&i.transform, ray) {
+                return true;
+            }
+        }
+
+        false
+    }
+
     pub fn trace(&self, ray: &RayWithEnergy<V>) -> Vec4<f32> {
+        // FIXME: avoid allocations
         let mut interferences: ~[@SceneNode<N, V, Vless, M>] = ~[];
 
         {
