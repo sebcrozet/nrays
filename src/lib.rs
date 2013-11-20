@@ -15,6 +15,8 @@ pub mod scene;
 pub mod image;
 pub mod light;
 pub mod material;
+pub mod ray_with_energy;
+
 pub mod normal_material;
 pub mod phong_material;
 pub mod reflective_material;

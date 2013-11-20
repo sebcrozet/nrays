@@ -1,6 +1,7 @@
 use std::num::{One, Zero};
 use nalgebra::na::{Vec3, Vec4};
 use ncollide::ray::Ray;
+use ray_with_energy::RayWithEnergy;
 use scene::Scene;
 use material::Material;
 
@@ -10,7 +11,7 @@ impl<N: Clone + One + Zero + ToPrimitive, Vlessi, M> Material<N, Vec3<N>, Vlessi
 for NormalMaterial {
     #[inline]
     fn compute(&self,
-               _:      &Ray<Vec3<N>>,
+               _:      &RayWithEnergy<Vec3<N>>,
                _:      &Vec3<N>,
                normal: &Vec3<N>,
                _:      &Scene<N, Vec3<N>, Vlessi, M>)

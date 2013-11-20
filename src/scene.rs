@@ -8,6 +8,7 @@ use ncollide::partitioning::bvt::BVT;
 use ncollide::partitioning::bvt_visitor::BVTVisitor;
 // use ncollide::partitioning::bvt_visitor::RayInterferencesCollector;
 use ncollide::ray::{Ray, RayCast, RayCastWithTransform};
+use ray_with_energy::RayWithEnergy;
 use scene_node::SceneNode;
 use image::Image;
 use light::Light;
@@ -64,7 +65,8 @@ Scene<N, V, Vless, M> {
 
         for _ in range(0u, NumCast::from(npixels).unwrap()) {
             // curr contains the index of the current sample point.
-            let c = self.trace(&unproject(&curr));
+            let ray = unproject(&curr);
+            let c   = self.trace(&RayWithEnergy::new(ray.orig.clone(), ray.dir));
             pixels.push(c);
 
             for j in range(0u, Dim::dim(None::<Vless>)) {
@@ -83,11 +85,11 @@ Scene<N, V, Vless, M> {
         Image::new(resolution.clone(), pixels)
     }
 
-    pub fn trace(&self, ray: &Ray<V>) -> Vec4<f32> {
+    pub fn trace(&self, ray: &RayWithEnergy<V>) -> Vec4<f32> {
         let mut interferences: ~[@SceneNode<N, V, Vless, M>] = ~[];
 
         {
-            let mut collector = RayInterferencesCollector::new(ray, &mut interferences);
+            let mut collector = RayInterferencesCollector::new(&ray.ray, &mut interferences);
             self.world.visit(&mut collector);
         }
 
@@ -95,7 +97,7 @@ Scene<N, V, Vless, M> {
         let mut mintoi:    N = Bounded::max_value();
         let mut minnormal: V = na::zero();
         for i in interferences.iter() {
-            let toi = i.geometry.toi_and_normal_with_transform_and_ray(&i.transform, ray);
+            let toi = i.geometry.toi_and_normal_with_transform_and_ray(&i.transform, &ray.ray);
 
             match toi {
                 None => { },
@@ -112,8 +114,14 @@ Scene<N, V, Vless, M> {
         match intersection {
             None     => Vec4::new(0.0, 0.0, 0.0, 1.0),
             Some(sn) => {
-                let inter = ray.orig + ray.dir * mintoi;
-                sn.material.compute(ray, &inter, &minnormal, self)
+                let inter = ray.ray.orig + ray.ray.dir * mintoi;
+
+                let mut color: Vec4<f32> = na::zero();
+                for m in sn.materials.iter() {
+                    color = color + m.compute(ray, &inter, &minnormal, self);
+                }
+
+                color
             }
         }
     }

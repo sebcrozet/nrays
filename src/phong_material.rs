@@ -2,6 +2,7 @@ use nalgebra::na::{Cast, VecExt, AlgebraicVecExt, AbsoluteRotate, Dim, Transform
                    Translation, Vec4, Vec3};
 use nalgebra::na;
 use ncollide::ray::Ray;
+use ray_with_energy::RayWithEnergy;
 use scene::Scene;
 use material::Material;
 
@@ -40,7 +41,7 @@ impl<N:     'static + Cast<f32> + Send + Freeze + NumCast + Primitive + Algebrai
      M:     Translation<V> + Rotate<V> + Send + Freeze + Transform<V> + Mul<M, M> + AbsoluteRotate<V> + Dim>
 Material<N, V, Vless, M> for PhongMaterial {
     fn compute(&self,
-               ray:    &Ray<V>,
+               ray:    &RayWithEnergy<V>,
                point:  &V,
                normal: &V,
                scene:  &Scene<N, V, Vless, M>) -> Vec4<f32> {
@@ -61,7 +62,7 @@ Material<N, V, Vless, M> for PhongMaterial {
             let lproj = normal * dot_ldir_norm;
             let rldir = na::normalize(&(-ldir + lproj * na::cast(2.0)));
 
-            let scoeff: f32 = NumCast::from(-na::dot(&rldir, &ray.dir)).unwrap();
+            let scoeff: f32 = NumCast::from(-na::dot(&rldir, &ray.ray.dir)).unwrap();
             if scoeff > na::zero() {
                 let scoeff   = scoeff.pow(&self.alpha);
                 let specular = light.color * self.specular_intensity * scoeff;
