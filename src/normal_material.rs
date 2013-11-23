@@ -1,6 +1,5 @@
 use std::num::{One, Zero};
 use nalgebra::na::{Vec3, Vec4};
-use ncollide::ray::Ray;
 use ray_with_energy::RayWithEnergy;
 use scene::Scene;
 use material::Material;

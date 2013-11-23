@@ -1,6 +1,5 @@
 use nalgebra::na::{Dim, Transform, Rotate, AbsoluteRotate, Translation, AlgebraicVecExt, VecExt, Cast, Vec4};
 use nalgebra::na;
-use ncollide::ray::Ray;
 use ray_with_energy::RayWithEnergy;
 use scene::Scene;
 use material::Material;

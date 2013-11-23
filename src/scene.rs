@@ -28,8 +28,7 @@ Scene<N, V, Vless, M> {
         let mut nodes_w_bvs = ~[];
 
         for n in nodes.move_iter() {
-            let aabb = n.geometry.aabb(&n.transform);
-            nodes_w_bvs.push((n, aabb));
+            nodes_w_bvs.push((n, n.aabb.clone()));
         }
 
         let bvt = BVT::new_with_partitioner(nodes_w_bvs, bvt::dim_pow_2_aabb_partitioner);
