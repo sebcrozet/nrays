@@ -1,5 +1,4 @@
 use std::io::Writer;
-use std::num::Zero;
 use nalgebra::na::{Indexable, Vec2, Vec3, Vec4};
 use nalgebra::na;
 
@@ -67,7 +66,7 @@ impl Image<Vec3<f64>> {
                     let color: Vec3<f32> = na::cast(c * 255.0f32);
                     let white            = Vec3::new(255.0, 255.0, 255.0);
                     let valid_color      = color.clamp(&na::zero(), &white);
-                    let px: Vec3<uint>   = na::cast(valid_color);
+                    let _: Vec3<uint>   = na::cast(valid_color);
 
                     w.write_le_f32((c.x + c.y + c.z) / 3.0f32);
                     // w.write_le_uint(px.y);

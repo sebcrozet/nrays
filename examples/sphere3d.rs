@@ -125,7 +125,7 @@ fn main() {
     perspective.inv();
 
     let scene  = Scene::new(nodes, lights);
-    let pixels = do scene.render(&resolution) |pt| {
+    let pixels = scene.render(&resolution, |pt| {
         let device_x = (pt.x / resolution.x - 0.5) * 2.0;
         let device_y = (pt.y / resolution.y - 0.5) * 2.0;
         let start = Vec4::new(device_x, device_y, -1.0, 1.0);
@@ -135,7 +135,7 @@ fn main() {
         let eye: Vec3<f64> = na::from_homogeneous(&h_eye);
         let at:  Vec3<f64> = na::from_homogeneous(&h_at);
         Ray::new(eye, na::normalize(&(at - eye)))
-    };
+    });
 
     let path = "out.ppm";
     let file = File::create(&Path::new(path)).expect("Cannot create the file: " + path);

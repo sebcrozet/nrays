@@ -46,7 +46,7 @@ Scene<N, V, Vless, M> {
         res
     }
 
-    pub fn render(&self, resolution: &Vless, unproject: &fn(&Vless) -> Ray<V>) -> Image<Vless> {
+    pub fn render(&self, resolution: &Vless, unproject: |&Vless| -> Ray<V>) -> Image<Vless> {
         let mut npixels: N = na::one();
 
         for i in resolution.iter() {

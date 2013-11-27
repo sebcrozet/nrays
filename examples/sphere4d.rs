@@ -82,14 +82,14 @@ fn main() {
     // nodes.push(@SceneNode::new(~[white],  na::append_translation(&transform, &Vec4::new(0.0f64, 0.0f64, 0.0, 4.0)), plane));
 
     let scene = Scene::new(nodes, lights);
-    let pixels = do scene.render(&resolution) |pt| {
+    let pixels = scene.render(&resolution, |pt| {
         let x = (pt.x / resolution.x - 0.5) * 2.0;
         let y = (pt.y / resolution.y - 0.5) * 2.0;
         let z = (pt.z / resolution.z - 0.5) * 2.0;
         // Ray::new(eye, na::normalize(&(Vec4::new(pt.x, pt.y, pt.z, 1.0) - eye)))
 
         Ray::new(Vec4::new(x, y, z, 0.0), Vec4::new(0.0, 0.0, 0.0, 1.0))
-    };
+    });
 
     let path = "out.4d";
     let mut file = File::create(&Path::new(path)).expect("Cannot create the file: " + path);
