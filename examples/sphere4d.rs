@@ -1,9 +1,10 @@
 #[link(name     = "sphere4d"
        , vers   = "0.0"
        , author = "Sébastien Crozet"
-       , uuid   = "cf8cfe5d-18ca-40cb-b596-d8790090a56d")];
+       , uuid   = "8dc3f859-98bb-476e-8a05-a27804277d08")];
 #[crate_type = "bin"];
-#[warn(non_camel_case_types)]
+#[warn(non_camel_case_types)];
+#[feature(managed_boxes)];
 
 extern mod nalgebra;
 extern mod ncollide;
@@ -63,11 +64,11 @@ fn main() {
 
     let transform: Iso4<f64> = na::one();
 
-    let box      = @Box::new_with_margin(Vec4::new(0.25, 0.25, 0.25, 0.25), 0.0);
-    let ball     = @Ball::new(0.25);
-    let cone     = @Cone::new_with_margin(0.25, 0.25, 0.0);
-    let cylinder = @Cylinder::new_with_margin(0.25, 0.25, 0.0);
-    let plane    = @Plane::new(Vec4::new(0.0, 0.0, 0.0, -1.0));
+    let box_shape = @Box::new_with_margin(Vec4::new(0.25, 0.25, 0.25, 0.25), 0.0);
+    let ball      = @Ball::new(0.25);
+    let cone      = @Cone::new_with_margin(0.25, 0.25, 0.0);
+    let cylinder  = @Cylinder::new_with_margin(0.25, 0.25, 0.0);
+    let plane     = @Plane::new(Vec4::new(0.0, 0.0, 0.0, -1.0));
 
     let pos  = na::append_translation(&transform, &Vec4::new(0.0, 0.0, 0.0,    4.0));
     let pos2 = na::append_translation(&transform, &Vec4::new(0.75, 0.75, 0.0,  4.0));
@@ -76,7 +77,7 @@ fn main() {
 
     let mut nodes = ~[];
     nodes.push(@SceneNode::new(~[refl, blue], pos,  ball));
-    nodes.push(@SceneNode::new(~[refl, blue], pos2, box));
+    nodes.push(@SceneNode::new(~[refl, blue], pos2, box_shape));
     nodes.push(@SceneNode::new(~[refl, blue], pos3, cone));
     nodes.push(@SceneNode::new(~[refl, blue], pos4, cylinder));
     // nodes.push(@SceneNode::new(~[white],  na::append_translation(&transform, &Vec4::new(0.0f64, 0.0f64, 0.0, 4.0)), plane));

@@ -154,17 +154,17 @@ Scene<N, V, Vless, M> {
  * ----------------------------------------------------------------------------------------------
  */
 /// Bounding Volume Tree visitor collecting interferences with a given ray.
-pub struct RayInterferencesCollector<'self, V, B> {
-    priv ray:       &'self Ray<V>,
-    priv collector: &'self mut ~[B]
+pub struct RayInterferencesCollector<'a, V, B> {
+    priv ray:       &'a Ray<V>,
+    priv collector: &'a mut ~[B]
 }
 
-impl<'self, V, B> RayInterferencesCollector<'self, V, B> {
+impl<'a, V, B> RayInterferencesCollector<'a, V, B> {
     /// Creates a new `RayInterferencesCollector`.
     #[inline]
-    pub fn new(ray:    &'self Ray<V>,
-               buffer: &'self mut ~[B])
-               -> RayInterferencesCollector<'self, V, B> {
+    pub fn new(ray:    &'a Ray<V>,
+               buffer: &'a mut ~[B])
+               -> RayInterferencesCollector<'a, V, B> {
         RayInterferencesCollector {
             ray:       ray,
             collector: buffer
@@ -172,12 +172,12 @@ impl<'self, V, B> RayInterferencesCollector<'self, V, B> {
     }
 }
 
-impl<'self,
+impl<'a,
      N,
      V:  Vec<N>,
      B:  Clone,
      BV: RayCast<N, V>>
-BVTVisitor<B, BV> for RayInterferencesCollector<'self, V, B> {
+BVTVisitor<B, BV> for RayInterferencesCollector<'a, V, B> {
     #[inline]
     fn visit_internal(&mut self, bv: &BV) -> bool {
         bv.intersects_ray(self.ray)

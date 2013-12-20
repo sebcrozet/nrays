@@ -92,12 +92,12 @@ fn main() {
         let normal_material = @NormalMaterial::new() as Material3d<f64>;
         let transform: Iso3<f64> = na::one();
 
-        let margin = 0.0f64;
-        let ball     = @Ball::new(1.0f64);
-        let box      = @Box::new_with_margin(Vec3::new(0.5f64, 0.5, 2.0), margin);
-        let cone     = @Cone::new_with_margin(2.0f64, 0.5f64, margin);
-        let cylinder = @Cylinder::new_with_margin(1.0f64, 1.0, margin);
-        let plane    = @Plane::new(Vec3::new(0.0f64, -2.0, -0.5));
+        let margin       = 0.0f64;
+        let ball         = @Ball::new(1.0f64);
+        let box_shape    = @Box::new_with_margin(Vec3::new(0.5f64, 0.5, 2.0), margin);
+        let cone         = @Cone::new_with_margin(2.0f64, 0.5f64, margin);
+        let cylinder     = @Cylinder::new_with_margin(1.0f64, 1.0, margin);
+        let plane        = @Plane::new(Vec3::new(0.0f64, -2.0, -0.5));
         let cylinder_box = @ManagedMinkowskiSum::new(na::append_rotation(&transform, &Vec3::new(0.2, 0.0, 0.4)), cone, transform, cone);
         // let cone_cylinder_box = @ManagedMinkowskiSum::new(transform, cylinder_box, transform, cone);
         // FIXME: new_capsule is missing from ncollide
@@ -107,9 +107,9 @@ fn main() {
         let tcb = na::append_rotation(&transform, &Vec3::new(0.0f64, pi / 4.0, 0.0));
         let tcb = na::append_translation(&tcb, &Vec3::new(0.0f64, -2.0, 15.0));
         nodes.push(@SceneNode::new(~[blue, refl], tcb, cylinder_box));
-        // nodes.push(@SceneNode::new(~[refl, blue], na::append_translation(&transform, &Vec3::new(-4.0f64, 0.0, 15.0)), box));
-        // nodes.push(@SceneNode::new(~[refl, green], na::append_translation(&transform, &Vec3::new(4.0f64, 0.0, 15.0)), cone));
-        // nodes.push(@SceneNode::new(~[refl, red], na::append_translation(&transform, &Vec3::new(0.0f64, -4.0f64, 15.0)), cylinder));
+        nodes.push(@SceneNode::new(~[refl, blue], na::append_translation(&transform, &Vec3::new(-4.0f64, 0.0, 15.0)), box_shape));
+        nodes.push(@SceneNode::new(~[refl, green], na::append_translation(&transform, &Vec3::new(4.0f64, 0.0, 15.0)), cone));
+        nodes.push(@SceneNode::new(~[refl, red], na::append_translation(&transform, &Vec3::new(0.0f64, -4.0f64, 15.0)), cylinder));
         nodes.push(@SceneNode::new(~[refl, white],  na::append_translation(&transform, &Vec3::new(0.0f64, 1.5f64, 15.0)), plane));
         // nodes.push(@SceneNode::new(green_material, transform.translated(&Vec3::new(0.0f64, 5.0f64, 15.0)), capsule));
     }
