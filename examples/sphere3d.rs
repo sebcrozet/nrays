@@ -7,6 +7,7 @@
 #[feature(managed_boxes)];
 #[feature(globs)];
 
+extern mod extra;
 extern mod nalgebra;
 extern mod ncollide;
 extern mod nrays;
@@ -14,14 +15,17 @@ extern mod nrays;
 use std::num;
 use std::io::buffered::BufferedWriter;
 use std::io::fs::File;
+use extra::arc::Arc;
 // XXX: globing is bad
 use nalgebra::na::*; // {Iso3, Vec2, Vec3, Vec4, Mat4, Inv, Identity};
 use nalgebra::na;
 use ncollide::ray::{Ray, RayCast, RayCastWithTransform};
 use ncollide::ray::ray_implicit::gjk_toi_and_normal_with_ray;
 use ncollide::bounding_volume::{AABB, HasAABB, implicit_shape_aabb};
-use ncollide::geom::{Geom, Box, Ball, Plane, Cone, Cylinder, MinkowskiSum, Implicit, HasMargin};
+use ncollide::geom::{Geom, Box, Ball, Plane, Cone, Cylinder, MinkowskiSum, Mesh};
+use ncollide::implicit::{HasMargin, Implicit};
 use ncollide::narrow::algorithm::johnson_simplex::JohnsonSimplex;
+use ncollide::aliases::dim3;
 use nrays::scene_node::SceneNode;
 use nrays::material::Material3d;
 use nrays::normal_material::NormalMaterial;
@@ -29,6 +33,7 @@ use nrays::phong_material::PhongMaterial;
 use nrays::reflective_material::ReflectiveMaterial;
 use nrays::scene::Scene;
 use nrays::light::Light;
+use nrays::obj;
 
 fn main() {
     let resolution = Vec2::new(1024.0, 1024.0);
@@ -92,6 +97,24 @@ fn main() {
         let normal_material = @NormalMaterial::new() as Material3d<f64>;
         let transform: Iso3<f64> = na::one();
 
+        /*
+         * Load an obj
+         */
+        let mut o  = obj::parse_file("media/monkey.obj", false);
+
+        let faces  = o.mut_faces().unwrap();
+        let coords = o.mut_coords().unwrap();
+        let uvs    = o.mut_uvs().unwrap();
+
+        let faces  = Arc::new(faces.flat_map(|a| ~[a.x as uint, a.y as uint, a.z as uint]));
+        let uvs    = Arc::new(uvs.flat_map(|a| ~[(a.x as f64, a.y as f64)]));
+        let coords = Arc::new(coords.map(|a| Vec3::new(a.x as f64, a.y as f64, a.z as f64) * 3.0));
+
+        let mesh: @dim3::TriangleMesh3d<f64> = @Mesh::new_with_margin(coords, faces, Some(uvs), 0.0);
+
+        /*
+         * ...
+         */
         let margin       = 0.0f64;
         let ball         = @Ball::new(1.0f64);
         let box_shape    = @Box::new_with_margin(Vec3::new(0.5f64, 0.5, 2.0), margin);
@@ -106,11 +129,19 @@ fn main() {
         let pi: f64 = num::Real::pi();
         let tcb = na::append_rotation(&transform, &Vec3::new(0.0f64, pi / 4.0, 0.0));
         let tcb = na::append_translation(&tcb, &Vec3::new(0.0f64, -2.0, 15.0));
-        nodes.push(@SceneNode::new(~[blue, refl], tcb, cylinder_box));
-        nodes.push(@SceneNode::new(~[refl, blue], na::append_translation(&transform, &Vec3::new(-4.0f64, 0.0, 15.0)), box_shape));
-        nodes.push(@SceneNode::new(~[refl, green], na::append_translation(&transform, &Vec3::new(4.0f64, 0.0, 15.0)), cone));
-        nodes.push(@SceneNode::new(~[refl, red], na::append_translation(&transform, &Vec3::new(0.0f64, -4.0f64, 15.0)), cylinder));
-        nodes.push(@SceneNode::new(~[refl, white],  na::append_translation(&transform, &Vec3::new(0.0f64, 1.5f64, 15.0)), plane));
+        let mcb = na::append_rotation(&transform, &Vec3::new(0.0f64, pi, 0.0));
+        let mcb = na::append_rotation(&mcb, &Vec3::new(0.0f64, 0.0, pi));
+        let mcb = na::append_translation(&mcb, &Vec3::new(0.0f64, 0.0, 15.0));
+        nodes.push(@SceneNode::new(~[normal_material], mcb, mesh));
+        // nodes.push(@SceneNode::new(~[refl, blue], na::append_translation(&transform, &Vec3::new(-4.0f64, 0.0, 15.0)), mesh));
+        // nodes.push(@SceneNode::new(~[refl, green], na::append_translation(&transform, &Vec3::new(4.0f64, 0.0, 15.0)), mesh));
+        // nodes.push(@SceneNode::new(~[refl, red], na::append_translation(&transform, &Vec3::new(0.0f64, -4.0f64, 15.0)), mesh));
+        // nodes.push(@SceneNode::new(~[refl, white],  na::append_translation(&transform, &Vec3::new(0.0f64, 1.5f64, 15.0)), mesh));
+        // nodes.push(@SceneNode::new(~[normal_material], mcb, cylinder_box));
+        // nodes.push(@SceneNode::new(~[refl, blue], na::append_translation(&transform, &Vec3::new(-4.0f64, 0.0, 15.0)), box_shape));
+        // nodes.push(@SceneNode::new(~[refl, green], na::append_translation(&transform, &Vec3::new(4.0f64, 0.0, 15.0)), cone));
+        // nodes.push(@SceneNode::new(~[refl, red], na::append_translation(&transform, &Vec3::new(0.0f64, -4.0f64, 15.0)), cylinder));
+        // nodes.push(@SceneNode::new(~[refl, white],  na::append_translation(&transform, &Vec3::new(0.0f64, 1.5f64, 15.0)), plane));
         // nodes.push(@SceneNode::new(green_material, transform.translated(&Vec3::new(0.0f64, 5.0f64, 15.0)), capsule));
     }
 
@@ -184,7 +215,7 @@ Implicit<N, V, Id> for ManagedMinkowskiSum<M, G1, G2> {
     }
 }
 
-impl<N: Algebraic + Num,
+impl<N: Algebraic + Num + Primitive,
      V: AlgebraicVecExt<N>,
      M:  Rotate<V> + Transform<V>,
      G1: Implicit<N, V, M>,

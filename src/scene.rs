@@ -31,7 +31,7 @@ Scene<N, V, Vless, M> {
             nodes_w_bvs.push((n, n.aabb.clone()));
         }
 
-        let bvt = BVT::new_with_partitioner(nodes_w_bvs, bvt::dim_pow_2_aabb_partitioner);
+        let bvt = BVT::new_with_partitioner(nodes_w_bvs, bvt::kdtree_partitioner);
 
         Scene {
             lights: lights,

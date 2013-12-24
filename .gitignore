@@ -1,4 +1,5 @@
 *.swp
 *.ppm
-bin
+bin/sphere3d
+bin/sphere4d
 *.so

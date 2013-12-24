@@ -21,3 +21,6 @@ pub mod ray_with_energy;
 pub mod normal_material;
 pub mod phong_material;
 pub mod reflective_material;
+
+pub mod obj;
+pub mod mesh;
