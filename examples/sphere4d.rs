@@ -1,7 +1,4 @@
-#[link(name     = "sphere4d"
-       , vers   = "0.0"
-       , author = "Sébastien Crozet"
-       , uuid   = "8dc3f859-98bb-476e-8a05-a27804277d08")];
+#[crate_id = "sphere4d"];
 #[crate_type = "bin"];
 #[warn(non_camel_case_types)];
 #[feature(managed_boxes)];
