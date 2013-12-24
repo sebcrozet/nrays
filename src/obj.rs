@@ -23,6 +23,10 @@ fn error(line: uint, err: &str) -> ! {
     fail!("At line " + line.to_str() + ": " + err)
 }
 
+fn warn(line: uint, err: &str) {
+    println("At line " + line.to_str() + ": " + err)
+}
+
 /// Parses an obj file.
 pub fn parse_file(path: &str, shared: bool) -> Mesh {
     let s   = File::open(&Path::new(path)).expect("Cannot open the file: " + path).read_to_end();
@@ -32,10 +36,10 @@ pub fn parse_file(path: &str, shared: bool) -> Mesh {
 
 /// Parses a string representing an obj file and returns (vertices, normals, texture coordinates, indices)
 pub fn parse(string: &str, shared: bool) -> Mesh {
-    let mut coords:  ~[Coord]     = ~[];
-    let mut normals: ~[Normal]    = ~[];
+    let mut coords:  ~[Coord]        = ~[];
+    let mut normals: ~[Normal]       = ~[];
     let mut mesh:    ~[Vec3<u32>] = ~[];
-    let mut uvs:     ~[UV]        = ~[];
+    let mut uvs:     ~[UV]           = ~[];
 
     for (l, line) in string.lines_any().enumerate() {
         let mut mode       = Unknown;
@@ -62,22 +66,34 @@ pub fn parse(string: &str, shared: bool) -> Mesh {
                 match mode {
                     V  => match word_val {
                         Some(v) => {
-                            if i - 1 >= curr_coords.len() { error(l, "vertices must have 3 components.") }
-                            curr_coords.set(i - 1, v)
+                            if i - 1 >= curr_coords.len() {
+                                warn(l, "vertices must have 3 components.")
+                            }
+                            else {
+                                curr_coords.set(i - 1, v)
+                            }
                         },
                         None    => error(l, "failed to parse `" + word + "' as a f32.")
                     },
                     VN => match word_val {
                         Some(n) => {
-                            if i - 1 >= curr_normal.len() { error(l, "normals must have 3 components.") }
-                            curr_normal.set(i - 1, n)
+                            if i - 1 >= curr_normal.len() {
+                                warn(l, "normals must have 3 components.")
+                            }
+                            else {
+                                curr_normal.set(i - 1, n)
+                            }
                         },
                         None    => error(l, "failed to parse `" + word + "' as a f32.")
                     },
                     VT => match word_val {
                         Some(t) => {
-                            if i - 1 >= curr_tex.len() { error(l, "texture coordinates must have 2 components.") }
-                            curr_tex.set(i - 1, t)
+                            if i - 1 >= curr_tex.len() {
+                                warn(l, "texture coordinates must have 2 components.")
+                            }
+                            else {
+                                curr_tex.set(i - 1, t)
+                            }
                         },
                         None    => error(l, "failed to parse `" + word + "' as a f32.")
                     },
@@ -125,10 +141,10 @@ pub fn parse(string: &str, shared: bool) -> Mesh {
 
         if num_parsed != 0 {
             match mode {
-                V  => if num_parsed != 3 { error(l, "vertices must have 3 components.") },
-                VN => if num_parsed != 3 { error(l, "normals must have 3 components.")  },
+                V  => if num_parsed < 3 { error(l, "vertices must have 3 components.") },
+                VN => if num_parsed < 3 { error(l, "normals must have 3 components.")  },
                 F  => if num_parsed < 3 { error(l, "faces must have at least 3 vertices.") },
-                VT => if num_parsed != 2 { error(l, "texture coordinates must have 2 components.") },
+                VT => if num_parsed < 2 { error(l, "texture coordinates must have 2 components.") },
                 _  => { }
             }
         }

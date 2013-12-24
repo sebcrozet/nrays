@@ -89,7 +89,7 @@ fn main() {
             100.0
         ) as Material3d<f64>;
 
-        let refl = @ReflectiveMaterial::new(0.2) as Material3d<f64>;
+        let refl = @ReflectiveMaterial::new(0.4) as Material3d<f64>;
 
         let normal_material = @NormalMaterial::new() as Material3d<f64>;
         let transform: Iso3<f64> = na::one();
@@ -97,7 +97,7 @@ fn main() {
         /*
          * Load an obj
          */
-        let mut o  = obj::parse_file("media/monkey.obj", false);
+        let mut o  = obj::parse_file("media/great_hall.obj", false);
 
         let faces  = o.mut_faces().unwrap();
         let coords = o.mut_coords().unwrap();
@@ -129,7 +129,7 @@ fn main() {
         let mcb = na::append_rotation(&transform, &Vec3::new(0.0f64, pi, 0.0));
         let mcb = na::append_rotation(&mcb, &Vec3::new(0.0f64, 0.0, pi));
         let mcb = na::append_translation(&mcb, &Vec3::new(0.0f64, 0.0, 15.0));
-        nodes.push(@SceneNode::new(~[normal_material], mcb, mesh));
+        nodes.push(@SceneNode::new(~[white], mcb, mesh));
         // nodes.push(@SceneNode::new(~[refl, blue], na::append_translation(&transform, &Vec3::new(-4.0f64, 0.0, 15.0)), mesh));
         // nodes.push(@SceneNode::new(~[refl, green], na::append_translation(&transform, &Vec3::new(4.0f64, 0.0, 15.0)), mesh));
         // nodes.push(@SceneNode::new(~[refl, red], na::append_translation(&transform, &Vec3::new(0.0f64, -4.0f64, 15.0)), mesh));
