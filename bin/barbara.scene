@@ -1,0 +1,29 @@
+camera
+    output out.png
+    resolution 1024 1024
+    eye  -2.0 5.0 0.0
+    at   0.0 4.0 0.0
+    fovy 85.0
+
+light
+    pos   5.0 10.0 5.0
+    color 1.0 1.0 1.0
+
+light
+    pos   5.0 10.0 -5.0
+    color 1.0 1.0 1.0
+
+light
+    pos   -5.0 10.0 -5.0
+    color 1.0 1.0 1.0
+
+light
+    pos   -5.0 10.0 5.0
+    color 1.0 1.0 1.0
+
+geometry
+    obj      media/barbara/barbara.obj media/barbara
+    pos      0.0 0.0 0.0
+    angle    0.0 0.0 0.0
+    material default
+    refl     0.2 0.5

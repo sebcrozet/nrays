@@ -1,0 +1,33 @@
+mtllib basic_materials.mtl
+
+camera
+    output out.png
+    resolution 1024 1024
+    eye  0.0 5.0 -10.0
+    at   0.0 0.0 0.0
+    fovy 45.0
+
+light
+    pos   0.0 10.0 0.0
+    color 1.0 1.0 1.0
+
+geometry
+    ball     1.0
+    pos      -2.1 0.0 0.0
+    angle    0.0 0.0 0.0
+    material uvs
+    refl     0.2 0.2
+
+geometry
+    ball     1.0
+    pos      2.1 0.0 0.0
+    angle    0.0 0.0 0.0
+    material normals
+    refl     0.2 0.2
+
+geometry
+    ball     1.0
+    pos      0.0 0.0 0.0
+    angle    0.0 0.0 0.0
+    material globe
+    refl     0.2 0.2

@@ -1,6 +1,6 @@
 use std::vec;
 use nalgebra::na::{Cast, Vec, VecExt, AlgebraicVecExt, AbsoluteRotate, Dim, Transform, Rotate,
-                   Translation, Vec4};
+                   Translation, Vec3};
 use nalgebra::na;
 use ncollide::bounding_volume::{AABB, HasAABB};
 use ncollide::partitioning::bvt;
@@ -8,6 +8,7 @@ use ncollide::partitioning::bvt::BVT;
 use ncollide::partitioning::bvt_visitor::BVTVisitor;
 // use ncollide::partitioning::bvt_visitor::RayInterferencesCollector;
 use ncollide::ray::{Ray, RayCast, RayCastWithTransform};
+use material::Material;
 use ray_with_energy::RayWithEnergy;
 use scene_node::SceneNode;
 use image::Image;
@@ -84,7 +85,7 @@ Scene<N, V, Vless, M> {
         Image::new(resolution.clone(), pixels)
     }
 
-    pub fn intersects_ray(&self, ray: &Ray<V>) -> bool {
+    pub fn intersects_ray(&self, ray: &Ray<V>, maxtoi: N) -> bool {
         // FIXME: avoid allocations
         let mut interferences: ~[@SceneNode<N, V, Vless, M>] = ~[];
 
@@ -94,15 +95,18 @@ Scene<N, V, Vless, M> {
         }
 
         for i in interferences.iter() {
-            if i.geometry.intersects_with_transform_and_ray(&i.transform, ray) {
-                return true;
+            let toi = i.geometry.toi_with_transform_and_ray(&i.transform, ray);
+
+            match toi {
+                None    => { },
+                Some(t) => if t <= maxtoi { return true }
             }
         }
 
         false
     }
 
-    pub fn trace(&self, ray: &RayWithEnergy<V>) -> Vec4<f32> {
+    pub fn trace(&self, ray: &RayWithEnergy<V>) -> Vec3<f32> {
         // FIXME: avoid allocations
         let mut interferences: ~[@SceneNode<N, V, Vless, M>] = ~[];
 
@@ -112,17 +116,19 @@ Scene<N, V, Vless, M> {
         }
 
         let mut intersection = None;
-        let mut mintoi:    N = Bounded::max_value();
-        let mut minnormal: V = na::zero();
+        let mut mintoi:    N                 = Bounded::max_value();
+        let mut minnormal: V                 = na::zero();
+        let mut minuvs:    Option<(N, N, N)> = None;
         for i in interferences.iter() {
-            let toi = i.geometry.toi_and_normal_with_transform_and_ray(&i.transform, &ray.ray);
+            let toi = i.cast(&ray.ray);
 
             match toi {
                 None => { },
-                Some((toi, normal)) => {
+                Some((toi, normal, uvs)) => {
                     if toi < mintoi {
                         mintoi       = toi;
                         minnormal    = normal;
+                        minuvs       = uvs;
                         intersection = Some(i);
                     }
                 }
@@ -130,16 +136,14 @@ Scene<N, V, Vless, M> {
         }
 
         match intersection {
-            None     => Vec4::new(0.0, 0.0, 0.0, 1.0),
+            None     => Vec3::new(0.0, 0.0, 0.0),
             Some(sn) => {
                 let inter = ray.ray.orig + ray.ray.dir * mintoi;
 
-                let mut color: Vec4<f32> = na::zero();
-                for m in sn.materials.iter() {
-                    color = color + m.compute(ray, &inter, &minnormal, self);
-                }
+                let obj  = sn.material.compute(ray, &inter, &minnormal, &minuvs, self);
+                let refl = sn.refl.compute(ray, &inter, &minnormal, &minuvs, self);
 
-                color
+                obj * (1.0 - sn.refl.mix)+ refl * sn.refl.mix
             }
         }
     }

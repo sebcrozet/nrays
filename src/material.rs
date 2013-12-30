@@ -10,5 +10,6 @@ pub trait Material<N, V, Vless, M> {
                ray:    &RayWithEnergy<V>,
                pt:     &V,
                normal: &V,
-               scene:  &Scene<N, V, Vless, M>) -> Vec4<f32>;
+               uv:     &Option<(N, N, N)>,
+               scene:  &Scene<N, V, Vless, M>) -> Vec3<f32>;
 }

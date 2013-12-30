@@ -27,6 +27,16 @@ impl<T: Clone + Send + Freeze> StorageLocation<T> {
     }
 }
 
+impl<T: Send + Freeze + Clone> Clone for StorageLocation<T> {
+    fn clone(&self) -> StorageLocation<T> {
+        match *self {
+            SharedImmutable(ref t) => SharedImmutable(t.clone()),
+            NotShared(ref t)       => NotShared(t.clone())
+        }
+    }
+}
+
+
 impl<T: Send + Freeze> StorageLocation<T> {
     pub fn new(t: T, shared: bool) -> StorageLocation<T> {
         if shared {
