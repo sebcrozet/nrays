@@ -1,6 +1,6 @@
-use nalgebra::na::{Cast, VecExt, AlgebraicVecExt, AbsoluteRotate, Dim, Transform, Rotate,
-                   Translation, Vec3};
+use nalgebra::na::{Vec3, Norm};
 use nalgebra::na;
+use ncollide::math::{N, V};
 use ncollide::ray::Ray;
 use ray_with_energy::RayWithEnergy;
 use scene::Scene;
@@ -39,18 +39,13 @@ impl PhongMaterial {
     }
 }
 
-// FIXME: there might be too many bounds here…
-impl<N:     'static + Cast<f32> + Send + Freeze + NumCast + Primitive + Algebraic + Signed + Float,
-     V:     'static + AlgebraicVecExt<N> + Send + Freeze + Clone,
-     Vless: VecExt<N> + Dim + Clone,
-     M:     Translation<V> + Rotate<V> + Send + Freeze + Transform<V> + Mul<M, M> + AbsoluteRotate<V> + Dim>
-Material<N, V, Vless, M> for PhongMaterial {
+impl Material for PhongMaterial {
     fn compute(&self,
-               ray:    &RayWithEnergy<V>,
+               ray:    &RayWithEnergy,
                point:  &V,
                normal: &V,
                uvs:    &Option<(N, N, N)>,
-               scene:  &Scene<N, V, Vless, M>)
+               scene:  &Scene)
                -> Vec3<f32> {
         // initialize with the ambiant color
         let mut res = self.ambiant_color * self.ka;
@@ -60,7 +55,7 @@ Material<N, V, Vless, M> for PhongMaterial {
             let mut ldir = light.pos - *point;
             let     dist = ldir.normalize() - na::cast(0.001);
 
-            if !scene.intersects_ray(&Ray::new(point + ldir * na::cast(0.001), ldir.clone()), dist) {
+            if !scene.intersects_ray(&Ray::new(point + ldir * na::cast::<f32, N>(0.001), ldir.clone()), dist) {
                 let dot_ldir_norm = na::dot(&ldir, normal);
 
                 // diffuse
@@ -82,7 +77,7 @@ Material<N, V, Vless, M> for PhongMaterial {
 
                 // specular
                 let lproj = normal * dot_ldir_norm;
-                let rldir = na::normalize(&(-ldir + lproj * na::cast(2.0)));
+                let rldir = na::normalize(&(-ldir + lproj * na::cast::<f32, N>(2.0)));
 
                 let scoeff: f32 = NumCast::from(-na::dot(&rldir, &ray.ray.dir)).expect("Conversion failed.");
                 if scoeff > na::zero() {

@@ -9,7 +9,8 @@ build_cmd_opt=rustc -Llib -L$(png_lib_path) -L$(nalgebra_lib_path) -L$(ncollide_
 
 all:
 	mkdir -p $(nrays_lib_path)
-	rustc $(nrays_rs) -L$(png_lib_path) -L$(nalgebra_lib_path) -L$(ncollide_lib_path) --out-dir $(nrays_lib_path) --opt-level 3
+	rustc src/lib3d.rs -L$(png_lib_path) -L$(nalgebra_lib_path) -L$(ncollide_lib_path) --cfg dim3 --out-dir $(nrays_lib_path) --opt-level 3
+	rustc src/lib4d.rs -L$(png_lib_path) -L$(nalgebra_lib_path) -L$(ncollide_lib_path) --cfg dim4 --out-dir $(nrays_lib_path) --opt-level 3
 
 deps:
 	cd lib/rust-png; ./configure
@@ -22,7 +23,7 @@ deps:
 test:
 	mkdir -p bin
 	$(build_cmd_opt) examples/loader3d.rs
-	# $(build_cmd_opt) examples/sphere4d.rs
+	$(build_cmd_opt) examples/sphere4d.rs
 
 bench:
 	mkdir -p $(nrays_lib_path)

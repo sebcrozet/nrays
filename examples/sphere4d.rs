@@ -4,28 +4,22 @@
 #[feature(managed_boxes)];
 
 extern mod nalgebra;
-extern mod ncollide;
-extern mod nrays;
+extern mod ncollide = "ncollide4df64";
+extern mod nrays    = "nrays4d";
 
-use std::io::buffered::BufferedWriter;
 use std::io::fs::File;
-use std::rand::Rng;
-use std::rand;
-use nalgebra::na::{Iso3, Iso4, Vec2, Vec3, Vec4, Mat4, Inv};
+use nalgebra::na::{Iso4, Vec3, Vec4};
 use nalgebra::na;
 use ncollide::ray::Ray;
-use ncollide::geom::{Ball, Box, Plane, Cone, Cylinder};
+use ncollide::geom::{Ball, Box, Cone, Cylinder};
 use nrays::scene_node::SceneNode;
-use nrays::material::Material4d;
-use nrays::normal_material::NormalMaterial;
+use nrays::material::Material;
 use nrays::phong_material::PhongMaterial;
 use nrays::reflective_material::ReflectiveMaterial;
 use nrays::scene::Scene;
 use nrays::light::Light;
 
 fn main() {
-    let eye        = Vec4::new(0.0f64, 0.0, 0.0, 0.0);
-    let at         = Vec4::new(0.0f64, 0.0, 0.0, 1.0);
     let resolution = Vec3::new(100.0f64, 100.0, 100.0);
 
     let mut lights = ~[];
@@ -41,23 +35,16 @@ fn main() {
                                Vec3::new(1.0, 1.0, 1.0)));
     }
 
-    let refl = @ReflectiveMaterial::new(0.2) as Material4d<f64>;
+    let refl = ReflectiveMaterial::new(0.4, 0.2);
     let blue = @PhongMaterial::new(
         Vec3::new(1.0, 1.0, 1.0),
         Vec3::new(1.0, 1.0, 1.0),
+        0.0,
         0.6,
-        0.0,
         0.4,
+        None,
         100.0
-    ) as Material4d<f64>;
-    let white = @PhongMaterial::new(
-        Vec3::new(1.0, 1.0, 1.0),
-        Vec3::new(1.0, 1.0, 1.0),
-        0.0,
-        0.0,
-        1.0,
-        100.0
-    ) as Material4d<f64>;
+    ) as @Material;
 
     let transform: Iso4<f64> = na::one();
 
@@ -65,7 +52,6 @@ fn main() {
     let ball      = @Ball::new(0.25);
     let cone      = @Cone::new_with_margin(0.25, 0.25, 0.0);
     let cylinder  = @Cylinder::new_with_margin(0.25, 0.25, 0.0);
-    let plane     = @Plane::new(Vec4::new(0.0, 0.0, 0.0, -1.0));
 
     let pos  = na::append_translation(&transform, &Vec4::new(0.0, 0.0, 0.0,    4.0));
     let pos2 = na::append_translation(&transform, &Vec4::new(0.75, 0.75, 0.0,  4.0));
@@ -73,10 +59,10 @@ fn main() {
     let pos4 = na::append_translation(&transform, &Vec4::new(0.0, 0.75, -0.75, 4.0));
 
     let mut nodes = ~[];
-    nodes.push(@SceneNode::new(~[refl, blue], pos,  ball));
-    nodes.push(@SceneNode::new(~[refl, blue], pos2, box_shape));
-    nodes.push(@SceneNode::new(~[refl, blue], pos3, cone));
-    nodes.push(@SceneNode::new(~[refl, blue], pos4, cylinder));
+    nodes.push(@SceneNode::new(blue, refl, pos,  ball, None));
+    nodes.push(@SceneNode::new(blue, refl, pos2, box_shape, None));
+    nodes.push(@SceneNode::new(blue, refl, pos3, cone, None));
+    nodes.push(@SceneNode::new(blue, refl, pos4, cylinder, None));
     // nodes.push(@SceneNode::new(~[white],  na::append_translation(&transform, &Vec4::new(0.0f64, 0.0f64, 0.0, 4.0)), plane));
 
     let scene = Scene::new(nodes, lights);

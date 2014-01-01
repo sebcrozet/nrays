@@ -1,5 +1,6 @@
 use png;
 use nalgebra::na::{Vec3, Vec2};
+use ncollide::math::N;
 
 // FIXME: move this to its own file
 pub enum Interpolation {
@@ -81,7 +82,7 @@ impl Texture2d {
         &'a self.data[y * self.dims.x + x]
     }
 
-    pub fn sample<N: NumCast + Clone>(&self, coords: &(N, N, N)) -> Vec3<f32> {
+    pub fn sample(&self, coords: &(N, N, N)) -> Vec3<f32> {
         let (ux, uy, _) = coords.clone();
         let mut ux: f32 = NumCast::from(ux).expect("Conversion of sampling coordinates failed.");
         let mut uy: f32 = NumCast::from(uy).expect("Conversion of sampling coordinates failed.");

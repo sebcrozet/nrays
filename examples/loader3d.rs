@@ -7,8 +7,8 @@
 extern mod png;
 extern mod extra;
 extern mod nalgebra;
-extern mod ncollide;
-extern mod nrays;
+extern mod ncollide = "ncollide3df64";
+extern mod nrays    = "nrays3d";
 
 use std::io::fs::File;
 use std::os;
@@ -17,14 +17,12 @@ use std::str;
 use std::str::WordIterator;
 use std::hashmap::HashMap;
 use extra::arc::Arc;
-use nalgebra::na::{Vec2, Vec3, Vec4, Iso3, Mat4};
+use nalgebra::na::{Vec2, Vec3, Vec4, Iso3};
 use nalgebra::na;
 use ncollide::ray::Ray;
 use ncollide::geom::{Plane, Ball, Cone, Cylinder, Box, Mesh};
-use ncollide::aliases::dim3;
 use nrays::scene_node::SceneNode;
-use nrays::scene_node::SceneNode3d;
-use nrays::material::Material3d;
+use nrays::material::Material;
 use nrays::normal_material::NormalMaterial;
 use nrays::phong_material::PhongMaterial;
 use nrays::texture2d::{Texture2d, Bilinear, Wrap};
@@ -61,7 +59,7 @@ fn main() {
 
     for c in cameras.move_iter() {
         // FIXME: new_perspective is _not_ accessible as a free function.
-        let perspective = Mat4::new_perspective(
+        let perspective = na::perspective3d(
             c.resolution.x,
             c.resolution.y,
             c.fovy.to_radians(),
@@ -178,7 +176,7 @@ fn warn(line: uint, err: &str) {
     println!("At line {}: {}", line, err)
 }
 
-fn parse(string: &str) -> (~[Light<Vec3<f64>>], ~[@SceneNode3d<f64>], ~[Camera]) {
+fn parse(string: &str) -> (~[Light], ~[@SceneNode], ~[Camera]) {
     let mut nodes   = ~[];
     let mut lights  = ~[];
     let mut cameras = ~[];
@@ -198,10 +196,10 @@ fn parse(string: &str) -> (~[Light<Vec3<f64>>], ~[@SceneNode3d<f64>], ~[Camera])
             0.2,
             None,
             100.0
-        ) as Material3d<f64>;
+        ) as @Material;
 
-        mtllib.insert(~"normals", @NormalMaterial::new() as Material3d<f64>);
-        mtllib.insert(~"uvs", @UVMaterial::new() as Material3d<f64>);
+        mtllib.insert(~"normals", @NormalMaterial::new() as @Material);
+        mtllib.insert(~"uvs", @UVMaterial::new() as @Material);
         mtllib.insert(~"default", white);
 
         match tag {
@@ -260,9 +258,9 @@ fn parse(string: &str) -> (~[Light<Vec3<f64>>], ~[@SceneNode3d<f64>], ~[Camera])
 
 fn register(mode:    &Mode,
             props:   Properties,
-            mtllib:  &mut HashMap<~str, Material3d<f64>>,
-            lights:  &mut ~[Light<Vec3<f64>>],
-            nodes:   &mut ~[@SceneNode3d<f64>],
+            mtllib:  &mut HashMap<~str, @Material>,
+            lights:  &mut ~[Light],
+            nodes:   &mut ~[@SceneNode],
             cameras: &mut ~[Camera]) {
     match *mode {
         Light    => register_light(props, lights),
@@ -320,7 +318,7 @@ fn register_camera(props: Properties, cameras: &mut ~[Camera]) {
     cameras.push(Camera::new(eye, at, fov, res, name));
 }
 
-fn register_light(props: Properties, lights: &mut ~[Light<Vec3<f64>>]) {
+fn register_light(props: Properties, lights: &mut ~[Light]) {
     warn_if_some(&props.geom);
     warn_if_some(&props.angle);
     warn_if_some(&props.material);
@@ -341,7 +339,7 @@ fn register_light(props: Properties, lights: &mut ~[Light<Vec3<f64>>]) {
     lights.push(light);
 }
 
-fn register_mtllib(path: &str, mtllib: &mut HashMap<~str, Material3d<f64>>) {
+fn register_mtllib(path: &str, mtllib: &mut HashMap<~str, @Material>) {
     let materials = mtl::parse_file(&Path::new(path)).expect("Failed to parse the mtl file: " + path);
 
     for m in materials.move_iter() {
@@ -354,15 +352,15 @@ fn register_mtllib(path: &str, mtllib: &mut HashMap<~str, Material3d<f64>>) {
             0.2,
             t,
             m.shininess
-            ) as Material3d<f64>;
+            ) as @Material;
 
         mtllib.insert(m.name, color);
     }
 }
 
 fn register_geometry(props:  Properties,
-                     mtllib: &mut HashMap<~str, Material3d<f64>>,
-                     nodes:  &mut ~[@SceneNode3d<f64>]) {
+                     mtllib: &mut HashMap<~str, @Material>,
+                     nodes:  &mut ~[@SceneNode]) {
     warn_if_some(&props.eye);
     warn_if_some(&props.at);
     warn_if_some(&props.fovy);
@@ -419,7 +417,7 @@ fn register_geometry(props:  Properties,
                 let coords = Arc::new(coords.map(|a| Vec3::new(a.x as f64, a.y as f64, a.z as f64) / 4.0));
                 let ns     = Arc::new(ns.map(|a| Vec3::new(a.x as f64, a.y as f64, a.z as f64)));
 
-                let mesh: @dim3::TriangleMesh3d<f64> = @Mesh::new_with_margin(coords, faces, Some(uvs), Some(ns), 0.0);
+                let mesh = @Mesh::new_with_margin(coords, faces, Some(uvs), Some(ns), 0.0);
                 match mat {
                     Some(m) => {
                         let t = m.diffuse_texture.as_ref().map(|t| {
@@ -436,7 +434,7 @@ fn register_geometry(props:  Properties,
                             0.2,
                             t,
                             m.shininess
-                            ) as Material3d<f64>;
+                            ) as @Material;
 
                         nodes.push(@SceneNode::new(if special { material } else { color }, refl, transform, mesh, None));
                     },

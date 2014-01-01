@@ -1,21 +1,20 @@
-use std::num::{One, Zero};
 use nalgebra::na::Vec3;
 use nalgebra::na;
+use ncollide::math::N;
 use ray_with_energy::RayWithEnergy;
 use scene::Scene;
 use material::Material;
 
 pub struct UVMaterial;
 
-impl<N: Clone + One + Zero + ToPrimitive, Vlessi, M> Material<N, Vec3<N>, Vlessi, M>
-for UVMaterial {
+impl Material for UVMaterial {
     #[inline]
     fn compute(&self,
-               _:  &RayWithEnergy<Vec3<N>>,
+               _:  &RayWithEnergy,
                _:  &Vec3<N>,
                _:  &Vec3<N>,
                uv: &Option<(N, N, N)>,
-               _:  &Scene<N, Vec3<N>, Vlessi, M>)
+               _:  &Scene)
                -> Vec3<f32> {
         match *uv {
             Some(ref uvs) => {

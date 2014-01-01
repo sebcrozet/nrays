@@ -1,15 +1,26 @@
 use std::io::Writer;
-use png;
-use nalgebra::na::{Indexable, Vec2, Vec3};
+use nalgebra::na::Vec3;
 use nalgebra::na;
+use ncollide::math::N;
 
-pub struct Image<V> {
-    priv extents: V, // extents of the rendering cube
+#[cfg(dim3)]
+use png;
+#[cfg(dim3)]
+use nalgebra::na::Vec2;
+
+#[cfg(dim3)]
+type Vless = Vec2<N>;
+
+#[cfg(dim4)]
+type Vless = Vec3<N>;
+
+pub struct Image {
+    priv extents: Vless, // extents of the rendering cube
     priv pixels:  ~[Vec3<f32>]
 }
 
-impl<V> Image<V> {
-    pub fn new(extents: V, pixels: ~[Vec3<f32>]) -> Image<V> {
+impl Image {
+    pub fn new(extents: Vless, pixels: ~[Vec3<f32>]) -> Image {
         Image {
             extents: extents,
             pixels:  pixels
@@ -17,7 +28,8 @@ impl<V> Image<V> {
     }
 }
 
-impl Image<Vec2<f64>> {
+#[cfg(dim3)]
+impl Image {
     pub fn to_ppm<W: Writer>(&self, w: &mut W) {
         // XXX: there is something weird here…
         let width  = self.extents.x as uint;
@@ -85,11 +97,12 @@ impl Image<Vec2<f64>> {
     }
 }
 
-impl Image<Vec3<f64>> {
+#[cfg(dim4)]
+impl Image {
     pub fn to_file<W: Writer>(&self, w: &mut W) {
-        let wx = self.extents.at(0) as uint;
-        let wy = self.extents.at(1) as uint;
-        let wz = self.extents.at(2) as uint;
+        let wx = self.extents.x as uint;
+        let wy = self.extents.y as uint;
+        let wz = self.extents.z as uint;
 
         for x in range(0u, wx) {
             for y in range(0u, wy) {

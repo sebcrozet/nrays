@@ -1,36 +1,36 @@
-use nalgebra::na::{Rotate, Transform, VecExt, Cast, Vec4, Vec3, Vec2, Iso3, Iso4};
-use nalgebra::na;
+use nalgebra::na::Transform;
 use ncollide::ray::{RayCastWithTransform, Ray};
 use ncollide::bounding_volume::{HasAABB, AABB};
+use ncollide::math::{N, V, M};
 use material::Material;
 use reflective_material::ReflectiveMaterial;
 use texture2d::Texture2d;
 
-pub type SceneNode3d<N> = SceneNode<N, Vec3<N>, Vec2<N>, Iso3<N>>;
-pub type SceneNode4d<N> = SceneNode<N, Vec4<N>, Vec3<N>, Iso4<N>>;
+#[cfg(dim3)]
+use nalgebra::na;
 
-pub struct SceneNode<N, V, Vlessi, M> {
+pub struct SceneNode {
     refl:      ReflectiveMaterial,
-    material:  @Material<N, V, Vlessi, M>,
+    material:  @Material,
     transform: M,
-    geometry:  @RayCastWithTransform<N, V, M>,
-    aabb:      AABB<N, V>,
+    geometry:  @RayCastWithTransform,
+    aabb:      AABB,
     nmap:      Option<Texture2d>
 
 }
 
-impl<N, V, Vlessi, M> SceneNode<N, V, Vlessi, M> {
-    pub fn new<G: 'static + RayCastWithTransform<N, V, M> + HasAABB<N, V, M>>(
-               material:  @Material<N, V, Vlessi, M>,
+impl SceneNode {
+    pub fn new<G: 'static + RayCastWithTransform + HasAABB>(
+               material:  @Material,
                refl:      ReflectiveMaterial,
                transform: M,
                geometry:  @G,
                nmap:      Option<Texture2d>)
-               -> SceneNode<N, V, Vlessi, M> {
+               -> SceneNode {
         SceneNode {
             refl:      refl, 
             material:  material,
-            geometry:  geometry as @RayCastWithTransform<N, V, M>,
+            geometry:  geometry as @RayCastWithTransform,
             aabb:      geometry.aabb(&transform),
             transform: transform,
             nmap:      nmap
@@ -39,14 +39,10 @@ impl<N, V, Vlessi, M> SceneNode<N, V, Vlessi, M> {
 
 }
 
-impl<N: Cast<f32> + NumCast + Clone, V: VecExt<N>, Vlessi, M: Transform<V> + Rotate<V>>
-SceneNode<N, V, Vlessi, M> {
-    pub fn cast(&self, r: &Ray<V>) -> Option<(N, V, Option<(N, N, N)>)> {
+impl SceneNode {
+    #[cfg(dim3)]
+    pub fn cast(&self, r: &Ray) -> Option<(N, V, Option<(N, N, N)>)> {
         let res = self.geometry.toi_and_normal_and_uv_with_transform_and_ray(&self.transform, r);
-
-        if na::dim::<V>() != 3 {
-            return res;
-        }
 
         if res.is_none() {
             return None;
@@ -63,14 +59,20 @@ SceneNode<N, V, Vlessi, M> {
                         let mut n = na::zero::<V>();
                         let cn    = (na::normalize(&nmap.sample(uvs)) - 0.5f32) * 2.0f32;
 
-                        n.set(0, na::cast(cn.x)); 
-                        n.set(1, na::cast(cn.y)); 
-                        n.set(2, na::cast(cn.z)); 
+                        n.x = na::cast(cn.x); 
+                        n.y = na::cast(cn.y); 
+                        n.z = na::cast(cn.z); 
 
                         Some((t, n, Some(uvs.clone())))
                     }
                 }
             }
         }
+    }
+
+    #[cfg(dim4)]
+    pub fn cast(&self, r: &Ray) -> Option<(N, V, Option<(N, N, N)>)> {
+        self.geometry.toi_and_normal_with_transform_and_ray(&self.transform, r).map(|(n, v)|
+            (n, v, None))
     }
 }

@@ -1,6 +1,5 @@
 use std::vec;
-use nalgebra::na::{Cast, Vec, VecExt, AlgebraicVecExt, AbsoluteRotate, Dim, Transform, Rotate,
-                   Translation, Vec3};
+use nalgebra::na::{Vec3, Dim, Iterable, Indexable};
 use nalgebra::na;
 use ncollide::bounding_volume::{AABB, HasAABB};
 use ncollide::partitioning::bvt;
@@ -8,24 +7,29 @@ use ncollide::partitioning::bvt::BVT;
 use ncollide::partitioning::bvt_visitor::BVTVisitor;
 // use ncollide::partitioning::bvt_visitor::RayInterferencesCollector;
 use ncollide::ray::{Ray, RayCast, RayCastWithTransform};
+use ncollide::math::{N, V};
 use material::Material;
 use ray_with_energy::RayWithEnergy;
 use scene_node::SceneNode;
 use image::Image;
 use light::Light;
 
-pub struct Scene<N, V, Vless, M> {
-    priv lights: ~[Light<V>],
-    priv world:  BVT<@SceneNode<N, V, Vless, M>, AABB<N, V>>
+#[cfg(dim3)]
+use nalgebra::na::Vec2;
+
+pub struct Scene {
+    priv lights: ~[Light],
+    priv world:  BVT<@SceneNode, AABB>
 }
 
-impl<N:     'static + Cast<f32> + Send + Freeze + NumCast + Primitive + Algebraic + Signed + Float,
-     V:     'static + AlgebraicVecExt<N> + Send + Freeze + Clone,
-     Vless: VecExt<N> + Dim + Clone,
-     M:     Translation<V> + Rotate<V> + Send + Freeze + Transform<V> + Mul<M, M> + AbsoluteRotate<V> + Dim>
-Scene<N, V, Vless, M> {
-    pub fn new(nodes:  ~[@SceneNode<N, V, Vless, M>],
-               lights: ~[Light<V>]) -> Scene<N, V, Vless, M> {
+#[cfg(dim3)]
+type Vless = Vec2<N>;
+
+#[cfg(dim4)]
+type Vless = Vec3<N>;
+
+impl Scene {
+    pub fn new(nodes: ~[@SceneNode], lights: ~[Light]) -> Scene {
         let mut nodes_w_bvs = ~[];
 
         for n in nodes.move_iter() {
@@ -41,13 +45,13 @@ Scene<N, V, Vless, M> {
     }
 
     #[inline]
-    pub fn lights<'a>(&'a self) -> &'a [Light<V>] {
-        let res: &'a [Light<V>] = self.lights;
+    pub fn lights<'a>(&'a self) -> &'a [Light] {
+        let res: &'a [Light] = self.lights;
 
         res
     }
 
-    pub fn render(&self, resolution: &Vless, unproject: |&Vless| -> Ray<V>) -> Image<Vless> {
+    pub fn render(&self, resolution: &Vless, unproject: |&Vless| -> Ray) -> Image {
         let mut npixels: N = na::one();
 
         for i in resolution.iter() {
@@ -85,9 +89,9 @@ Scene<N, V, Vless, M> {
         Image::new(resolution.clone(), pixels)
     }
 
-    pub fn intersects_ray(&self, ray: &Ray<V>, maxtoi: N) -> bool {
+    pub fn intersects_ray(&self, ray: &Ray, maxtoi: N) -> bool {
         // FIXME: avoid allocations
-        let mut interferences: ~[@SceneNode<N, V, Vless, M>] = ~[];
+        let mut interferences: ~[@SceneNode] = ~[];
 
         {
             let mut collector = RayInterferencesCollector::new(ray, &mut interferences);
@@ -106,9 +110,9 @@ Scene<N, V, Vless, M> {
         false
     }
 
-    pub fn trace(&self, ray: &RayWithEnergy<V>) -> Vec3<f32> {
+    pub fn trace(&self, ray: &RayWithEnergy) -> Vec3<f32> {
         // FIXME: avoid allocations
-        let mut interferences: ~[@SceneNode<N, V, Vless, M>] = ~[];
+        let mut interferences: ~[@SceneNode] = ~[];
 
         {
             let mut collector = RayInterferencesCollector::new(&ray.ray, &mut interferences);
@@ -158,17 +162,16 @@ Scene<N, V, Vless, M> {
  * ----------------------------------------------------------------------------------------------
  */
 /// Bounding Volume Tree visitor collecting interferences with a given ray.
-pub struct RayInterferencesCollector<'a, V, B> {
-    priv ray:       &'a Ray<V>,
+pub struct RayInterferencesCollector<'a, B> {
+    priv ray:       &'a Ray,
     priv collector: &'a mut ~[B]
 }
 
-impl<'a, V, B> RayInterferencesCollector<'a, V, B> {
+impl<'a, B> RayInterferencesCollector<'a, B> {
     /// Creates a new `RayInterferencesCollector`.
     #[inline]
-    pub fn new(ray:    &'a Ray<V>,
-               buffer: &'a mut ~[B])
-               -> RayInterferencesCollector<'a, V, B> {
+    pub fn new(ray: &'a Ray, buffer: &'a mut ~[B])
+               -> RayInterferencesCollector<'a, B> {
         RayInterferencesCollector {
             ray:       ray,
             collector: buffer
@@ -176,12 +179,7 @@ impl<'a, V, B> RayInterferencesCollector<'a, V, B> {
     }
 }
 
-impl<'a,
-     N,
-     V:  Vec<N>,
-     B:  Clone,
-     BV: RayCast<N, V>>
-BVTVisitor<B, BV> for RayInterferencesCollector<'a, V, B> {
+impl<'a, B: Clone, BV: RayCast> BVTVisitor<B, BV> for RayInterferencesCollector<'a, B> {
     #[inline]
     fn visit_internal(&mut self, bv: &BV) -> bool {
         bv.intersects_ray(self.ray)
