@@ -1,5 +1,5 @@
 use std::vec;
-use nalgebra::na::{Vec3, Dim, Iterable, Indexable};
+use nalgebra::na::{Vec3, Iterable};
 use nalgebra::na;
 use ncollide::bounding_volume::{AABB, HasAABB};
 use ncollide::partitioning::bvt;
@@ -14,6 +14,11 @@ use scene_node::SceneNode;
 use image::Image;
 use light::Light;
 
+#[cfg(dim4)]
+use nalgebra::na::{Dim, Indexable};
+
+#[cfg(dim3)]
+use std::rand;
 #[cfg(dim3)]
 use nalgebra::na::Vec2;
 
@@ -51,6 +56,40 @@ impl Scene {
         res
     }
 
+    #[cfg(dim3)]
+    pub fn render(&self,
+                  resolution:    &Vless,
+                  ray_per_pixel: uint,
+                  window_width:  N,
+                  unproject:     |&Vless| -> Ray)
+                  -> Image {
+        assert!(ray_per_pixel > 0);
+
+        let npixels: uint = NumCast::from(resolution.x * resolution.y).unwrap();
+        let mut pixels    = vec::with_capacity(npixels);
+
+        for j in range(0u, na::cast(resolution.y)) {
+            for i in range(0u, na::cast(resolution.x)) {
+                let mut tot_c: Vec3<f32> = na::zero();
+
+                for _ in range(0u, ray_per_pixel) {
+                    let perturbation  = (rand::random::<Vless>() - na::cast::<f32, N>(0.5)) * window_width;
+                    let orig: Vec2<N> = Vec2::new(na::cast(i), na::cast(j)) + perturbation;
+
+                    let ray = unproject(&orig);
+                    let c   = self.trace(&RayWithEnergy::new(ray.orig.clone(), ray.dir));
+
+                    tot_c = tot_c + c;
+                }
+
+                pixels.push(tot_c / na::cast::<uint, f32>(ray_per_pixel));
+            }
+        }
+
+        Image::new(resolution.clone(), pixels)
+    }
+
+    #[cfg(dim4)]
     pub fn render(&self, resolution: &Vless, unproject: |&Vless| -> Ray) -> Image {
         let mut npixels: N = na::one();
 

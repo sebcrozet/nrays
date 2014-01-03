@@ -71,8 +71,8 @@ fn main() {
 
         let projection = na::to_homogeneous(&camera) * na::inv(&perspective).expect("Perspective matrix not invesible.");
 
-        println!("Casting rays.");
-        let pixels = scene.render(&c.resolution, |pt| {
+        println!("Casting {} rays per pixels (win. {}).", c.aa.x as uint, c.aa.y);
+        let pixels = scene.render(&c.resolution, c.aa.x as uint, c.aa.y, |pt| {
             let device_x = (pt.x / c.resolution.x - 0.5) * 2.0;
             let device_y = -(pt.y / c.resolution.y - 0.5) * 2.0;
             let start = Vec4::new(device_x, device_y, -1.0, 1.0);
@@ -119,16 +119,20 @@ struct Camera {
     at:         Vec3<f64>,
     fovy:       f64,
     resolution: Vec2<f64>,
+    aa:         Vec2<f64>,
     output:     ~str
 }
 
 impl Camera {
-    pub fn new(eye: Vec3<f64>, at: Vec3<f64>, fovy: f64, resolution: Vec2<f64>, output: ~str) -> Camera {
+    pub fn new(eye: Vec3<f64>, at: Vec3<f64>, fovy: f64, resolution: Vec2<f64>, aa: Vec2<f64>, output: ~str) -> Camera {
+        assert!(aa.x >= 1.0, "The number of ray per pixel must be at least 1.0");
+
         Camera {
             eye:        eye,
             at:         at,
             fovy:       fovy,
             resolution: resolution,
+            aa:         aa,
             output:     output
         }
     }
@@ -146,7 +150,8 @@ struct Properties {
     color:      Option<(uint, Vec3<f64>)>,
     resolution: Option<(uint, Vec2<f64>)>,
     output:     Option<(uint, ~str)>,
-    refl:       Option<(uint, Vec2<f64>)>
+    refl:       Option<(uint, Vec2<f64>)>,
+    aa:         Option<(uint, Vec2<f64>)>,
 }
 
 impl Properties {
@@ -163,7 +168,8 @@ impl Properties {
             color:      None,
             resolution: None,
             output:     None,
-            refl:       None
+            refl:       None,
+            aa:         None
         }
     }
 }
@@ -235,6 +241,7 @@ fn parse(string: &str) -> (~[Light], ~[@SceneNode], ~[Camera]) {
                         &"output"     => props.output     = Some((l, parse_name(l, words))),
                         &"resolution" => props.resolution = Some((l, parse_duet(l, words))),
                         &"refl"       => props.refl       = Some((l, parse_duet(l, words))),
+                        &"aa"         => props.aa         = Some((l, parse_duet(l, words))),
                         // geometries
                         &"ball"       => props.geom = Some((l, parse_ball(l, words))),
                         &"plane"      => props.geom = Some((l, parse_plane(l, words))),
@@ -293,6 +300,7 @@ fn register_nothing(props: Properties) {
     warn_if_some(&props.output);
     warn_if_some(&props.resolution);
     warn_if_some(&props.refl);
+    warn_if_some(&props.aa);
 }
 
 fn register_camera(props: Properties, cameras: &mut ~[Camera]) {
@@ -303,19 +311,23 @@ fn register_camera(props: Properties, cameras: &mut ~[Camera]) {
     warn_if_some(&props.color);
     warn_if_some(&props.refl);
 
-    fail_if_none(&props.output, props.superbloc, "output <filename>");
-    fail_if_none(&props.resolution, props.superbloc, "resolution <x> <y>");
-    fail_if_none(&props.eye, props.superbloc, "eye <x> <y> <z>");
-    fail_if_none(&props.at, props.superbloc, "at <x> <y> <z>");
-    fail_if_none(&props.fovy, props.superbloc, "fovy <value>");
+    let l = props.superbloc;
 
+    fail_if_none(&props.output, l, "output <filename>");
+    fail_if_none(&props.resolution, l, "resolution <x> <y>");
+    fail_if_none(&props.eye, l, "eye <x> <y> <z>");
+    fail_if_none(&props.at, l, "at <x> <y> <z>");
+    fail_if_none(&props.fovy, l, "fovy <value>");
+
+
+    let aa   = props.aa.unwrap_or((l, Vec2::new(1.0, 0.0)));
     let eye  = props.eye.unwrap().n1();
     let at   = props.at.unwrap().n1();
     let fov  = props.fovy.unwrap().n1();
     let res  = props.resolution.unwrap().n1();
     let name = props.output.unwrap().n1();
 
-    cameras.push(Camera::new(eye, at, fov, res, name));
+    cameras.push(Camera::new(eye, at, fov, res, aa.n1(), name));
 }
 
 fn register_light(props: Properties, lights: &mut ~[Light]) {
@@ -328,6 +340,7 @@ fn register_light(props: Properties, lights: &mut ~[Light]) {
     warn_if_some(&props.output);
     warn_if_some(&props.resolution);
     warn_if_some(&props.refl);
+    warn_if_some(&props.aa);
 
     fail_if_none(&props.pos, props.superbloc, "pos <x> <y> <z>");
     fail_if_none(&props.color, props.superbloc, "color <r> <g> <b>");
