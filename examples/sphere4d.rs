@@ -25,14 +25,20 @@ fn main() {
     let mut lights = ~[];
 
     {
-        lights.push(Light::new(Vec4::new(10.0f64, -10.0, 10.0, 1.0),
+        lights.push(Light::new(Vec4::new(0.0f64, 10.0, 10.0, 1.0),
                                Vec3::new(1.0, 1.0, 1.0)));
-        lights.push(Light::new(Vec4::new(-10.0f64, -10.0, 10.0, 1.0),
+        lights.push(Light::new(Vec4::new(0.0f64, 10.0, 10.0, 1.0),
                                Vec3::new(1.0, 1.0, 1.0)));
-        lights.push(Light::new(Vec4::new(10.0f64, 10.0, 10.0, 1.0),
+        /*
+        lights.push(Light::new(Vec4::new(0.0f64, -10.0, -10.0, 1.0),
                                Vec3::new(1.0, 1.0, 1.0)));
-        lights.push(Light::new(Vec4::new(-10.0f64, 10.0, 10.0, 1.0),
+        lights.push(Light::new(Vec4::new(0.0f64, -10.0, 10.0, 1.0),
                                Vec3::new(1.0, 1.0, 1.0)));
+        lights.push(Light::new(Vec4::new(0.0f64, 10.0, -10.0, 1.0),
+                               Vec3::new(1.0, 1.0, 1.0)));
+        lights.push(Light::new(Vec4::new(0.0f64, 10.0, 10.0, 1.0),
+                               Vec3::new(1.0, 1.0, 1.0)));
+                               */
     }
 
     let refl = ReflectiveMaterial::new(0.4, 0.2);
@@ -48,9 +54,9 @@ fn main() {
 
     let transform: Iso4<f64> = na::one();
 
-    let box_shape = @Box::new_with_margin(Vec4::new(0.25, 0.25, 0.25, 0.25), 0.0);
+    let box_shape = @Box::new_with_margin(Vec4::new(0.25, 0.25, 0.25, 0.00000001), 0.000000001);
     let ball      = @Ball::new(0.25);
-    let cone      = @Cone::new_with_margin(0.25, 0.25, 0.0);
+    let cone      = @Box::new_with_margin(Vec4::new(0.25, 0.25, 0.25, 0.00000001), 0.00000001); // Cone::new_with_margin(0.25, 0.25, 0.0);
     let cylinder  = @Cylinder::new_with_margin(0.25, 0.25, 0.0);
 
     let pos  = na::append_translation(&transform, &Vec4::new(0.0, 0.0, 0.0,    4.0));
