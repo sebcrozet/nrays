@@ -1,18 +1,27 @@
+use std::rand;
 use nalgebra::na::Vec3;
-use ncollide::math::V;
+use ncollide::math::{N, V};
 
-// FIXME: this is a point light
-// Implemente other types of lights
 pub struct Light {
-    pos:   V,
-    color: Vec3<f32>
+    pos:     V,
+    radius:  N,
+    nsample: uint,
+    color:   Vec3<f32>
 }
 
 impl Light {
-    pub fn new(pos: V, color: Vec3<f32>) -> Light {
+    pub fn new(pos: V, radius: N, nsample: uint, color: Vec3<f32>) -> Light {
         Light {
-            pos:   pos,
-            color: color
+            pos:     pos,
+            radius:  radius,
+            nsample: nsample,
+            color:   color
+        }
+    }
+
+    pub fn sample<T>(&self, n: uint, f: |V| -> T) {
+        for _ in range(0u, n) {
+            f(rand::random::<V>() * self.radius + self.pos);
         }
     }
 }

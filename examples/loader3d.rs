@@ -152,6 +152,8 @@ struct Properties {
     output:     Option<(uint, ~str)>,
     refl:       Option<(uint, Vec2<f64>)>,
     aa:         Option<(uint, Vec2<f64>)>,
+    radius:     Option<(uint, f64)>,
+    nsample:    Option<(uint, f64)>,
 }
 
 impl Properties {
@@ -169,7 +171,9 @@ impl Properties {
             resolution: None,
             output:     None,
             refl:       None,
-            aa:         None
+            aa:         None,
+            radius:     None,
+            nsample:    None,
         }
     }
 }
@@ -242,6 +246,8 @@ fn parse(string: &str) -> (~[Light], ~[@SceneNode], ~[Camera]) {
                         &"resolution" => props.resolution = Some((l, parse_duet(l, words))),
                         &"refl"       => props.refl       = Some((l, parse_duet(l, words))),
                         &"aa"         => props.aa         = Some((l, parse_duet(l, words))),
+                        &"radius"     => props.radius     = Some((l, parse_number(l, words))),
+                        &"nsample"    => props.nsample    = Some((l, parse_number(l, words))),
                         // geometries
                         &"ball"       => props.geom = Some((l, parse_ball(l, words))),
                         &"plane"      => props.geom = Some((l, parse_plane(l, words))),
@@ -301,6 +307,8 @@ fn register_nothing(props: Properties) {
     warn_if_some(&props.resolution);
     warn_if_some(&props.refl);
     warn_if_some(&props.aa);
+    warn_if_some(&props.radius);
+    warn_if_some(&props.nsample);
 }
 
 fn register_camera(props: Properties, cameras: &mut ~[Camera]) {
@@ -310,6 +318,8 @@ fn register_camera(props: Properties, cameras: &mut ~[Camera]) {
     warn_if_some(&props.material);
     warn_if_some(&props.color);
     warn_if_some(&props.refl);
+    warn_if_some(&props.radius);
+    warn_if_some(&props.nsample);
 
     let l = props.superbloc;
 
@@ -345,9 +355,11 @@ fn register_light(props: Properties, lights: &mut ~[Light]) {
     fail_if_none(&props.pos, props.superbloc, "pos <x> <y> <z>");
     fail_if_none(&props.color, props.superbloc, "color <r> <g> <b>");
 
-    let pos   = props.pos.unwrap().n1();
-    let color = na::cast(props.color.unwrap().n1());
-    let light = Light::new(pos, color);
+    let radius  = props.radius.unwrap_or((props.superbloc, 0.0)).n1();
+    let nsample = props.nsample.unwrap_or((props.superbloc, 1.0)).n1();
+    let pos     = props.pos.unwrap().n1();
+    let color   = na::cast(props.color.unwrap().n1());
+    let light   = Light::new(pos, radius, nsample as uint, color);
 
     lights.push(light);
 }

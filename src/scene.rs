@@ -1,4 +1,5 @@
 use std::vec;
+use std::io::stdio;
 use nalgebra::na::{Vec3, Iterable};
 use nalgebra::na;
 use ncollide::bounding_volume::{AABB, HasAABB};
@@ -68,16 +69,24 @@ impl Scene {
         let npixels: uint = NumCast::from(resolution.x * resolution.y).unwrap();
         let mut pixels    = vec::with_capacity(npixels);
 
+        let nrays = resolution.y * resolution.x * (ray_per_pixel as f64);
+        println!("Tracing {} rays.", nrays as int);
+        let mut rays_done = 0;
+
         for j in range(0u, na::cast(resolution.y)) {
             for i in range(0u, na::cast(resolution.x)) {
                 let mut tot_c: Vec3<f32> = na::zero();
 
                 for _ in range(0u, ray_per_pixel) {
+                    rays_done = rays_done + 1;
+
                     let perturbation  = (rand::random::<Vless>() - na::cast::<f32, N>(0.5)) * window_width;
                     let orig: Vec2<N> = Vec2::new(na::cast(i), na::cast(j)) + perturbation;
 
                     let ray = unproject(&orig);
                     let c   = self.trace(&RayWithEnergy::new(ray.orig.clone(), ray.dir));
+                    print!("{} / {} − {}%\r", rays_done, nrays, ((rays_done as f64) / nrays * 100.0) as int);
+                    stdio::flush();
 
                     tot_c = tot_c + c;
                 }

@@ -16,8 +16,10 @@ camera
     aa   50 1.0
 
 light
-    pos   0.0 5.0 5.0
-    color 1.0 1.0 1.0
+    pos     0.0 5.0 5.0
+    color   1.0 1.0 1.0
+    radius  0.5
+    nsample 50
 
 geometry
     box      1.0 1.0 1.0

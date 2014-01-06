@@ -26,8 +26,12 @@ fn main() {
 
     {
         lights.push(Light::new(Vec4::new(0.0f64, 10.0, 10.0, 1.0),
+                               0.0,
+                               1,
                                Vec3::new(1.0, 1.0, 1.0)));
         lights.push(Light::new(Vec4::new(0.0f64, 10.0, 10.0, 1.0),
+                               0.0,
+                               1,
                                Vec3::new(1.0, 1.0, 1.0)));
         /*
         lights.push(Light::new(Vec4::new(0.0f64, -10.0, -10.0, 1.0),
