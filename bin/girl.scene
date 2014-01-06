@@ -1,8 +1,8 @@
 camera
     output out.png
     resolution 1024 1024
-    eye  0.0 -2.0 2.5
-    at   0.0 2.0 0.0
+    eye  0.0 1.0 2.5
+    at   0.0 1.0 0.0
     fovy 45.0
 
 light
@@ -16,6 +16,6 @@ light
 geometry
     obj      media/girl/girl.obj media/girl
     pos      0.0 0.0 0.0
-    angle    -45.0 0.0 0.0
+    angle    -90.0 0.0 0.0
     material default
     refl     0.2 0.5

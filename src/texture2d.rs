@@ -1,6 +1,50 @@
+use std::rc::Rc;
+use std::hashmap::HashMap;
+use std::local_data;
 use png;
 use nalgebra::na::{Vec3, Vec2};
 use ncollide::math::N;
+
+struct ImageData {
+    pixels: ~[Vec3<f32>],
+    dims:   Vec2<uint>
+}
+
+impl ImageData {
+    pub fn new(pixels: ~[Vec3<f32>], dims: Vec2<uint>) -> ImageData {
+        assert!(pixels.len() == dims.x * dims.y);
+        assert!(dims.x >= 1);
+        assert!(dims.y >= 1);
+
+        ImageData {
+            pixels: pixels,
+            dims:   dims
+        }
+    }
+}
+
+local_data_key!(KEY_TEXTURE_MANAGER: TexturesManager)
+
+struct TexturesManager {
+    loaded: HashMap<~str, Rc<ImageData>>
+}
+
+impl TexturesManager {
+    pub fn new() -> TexturesManager {
+        TexturesManager {
+            loaded: HashMap::new()
+        }
+    }
+}
+
+/// Gets the texture manager.
+pub fn get_texture_manager<T>(f: |&mut TexturesManager| -> T) -> T {
+    if local_data::get(KEY_TEXTURE_MANAGER, |tm| tm.is_none()) {
+        local_data::set(KEY_TEXTURE_MANAGER, TexturesManager::new())
+    }
+
+    local_data::get_mut(KEY_TEXTURE_MANAGER, |tm| f(tm.unwrap()))
+}
 
 // FIXME: move this to its own file
 pub enum Interpolation {
@@ -14,72 +58,83 @@ pub enum Overflow {
 }
 
 pub struct Texture2d {
-    data:     ~[Vec3<f32>],
-    dims:     Vec2<uint>,
+    data:     Rc<ImageData>,
     interpol: Interpolation,
     overflow: Overflow
 }
 
 impl Texture2d {
-    pub fn new(data:          ~[Vec3<f32>],
-               dims:          Vec2<uint>,
+    pub fn new(data:          Rc<ImageData>,
                interpolation: Interpolation,
                overflow:      Overflow)
                -> Texture2d {
-        assert!(data.len() == dims.x * dims.y);
-        assert!(dims.x >= 1);
-        assert!(dims.y >= 1);
-
         Texture2d {
             data:     data,
-            dims:     dims,
             interpol: interpolation,
             overflow: overflow 
         }
     }
 
     pub fn from_png(path: &Path, interpolation: Interpolation, overflow: Overflow) -> Option<Texture2d> {
-        let img = png::load_png(path);
 
-        if !img.is_ok() {
-            None
-        }
-        else {
-            let img = img.unwrap();
-            let mut data = ~[];
-
-            match img.color_type {
-                png::RGB8 => {
-                    for p in img.pixels.chunks(3) {
-                        let r = p[0] as f32 / 255.0;
-                        let g = p[1] as f32 / 255.0;
-                        let b = p[2] as f32 / 255.0;
-
-                        data.push(Vec3::new(r, g, b));
+        let data = get_texture_manager(|tm| {
+            let res = match tm.loaded.find(&path.as_str().unwrap().to_owned()) {
+                Some(data) => Some(data.clone()),
+                None => {
+                    let img = png::load_png(path);
+                    if !img.is_ok() {
+                        None
                     }
+                    else {
+                        let     img  = img.unwrap();
+                        let mut data = ~[];
 
-                    Some(Texture2d::new(data, Vec2::new(img.width as uint, img.height as uint), interpolation, overflow))
-                },
-                png::RGBA8 => {
-                    for p in img.pixels.chunks(4) {
-                        let r = p[0] as f32 / 255.0;
-                        let g = p[1] as f32 / 255.0;
-                        let b = p[2] as f32 / 255.0;
+                        match img.color_type {
+                            png::RGB8 => {
+                                for p in img.pixels.chunks(3) {
+                                    let r = p[0] as f32 / 255.0;
+                                    let g = p[1] as f32 / 255.0;
+                                    let b = p[2] as f32 / 255.0;
 
-                        data.push(Vec3::new(r, g, b));
+                                    data.push(Vec3::new(r, g, b));
+                                }
+
+                                Some(Rc::new(ImageData::new(data,
+                                             Vec2::new(img.width as uint, img.height as uint))))
+                            },
+                            png::RGBA8 => {
+                                for p in img.pixels.chunks(4) {
+                                    let r = p[0] as f32 / 255.0;
+                                    let g = p[1] as f32 / 255.0;
+                                    let b = p[2] as f32 / 255.0;
+
+                                    data.push(Vec3::new(r, g, b));
+                                }
+
+                                Some(Rc::new(ImageData::new(data,
+                                             Vec2::new(img.width as uint, img.height as uint))))
+                            },
+                            _         => {
+                                fail!("Unsuported data type.")
+                            }
+                        }
                     }
-
-                    Some(Texture2d::new(data, Vec2::new(img.width as uint, img.height as uint), interpolation, overflow))
-                },
-                _         => {
-                    fail!("Unsuported data type.")
                 }
-            }
-        }
+            };
+
+            let data = res.clone();
+            data.map(|data| tm.loaded.insert(path.as_str().unwrap().to_owned(), data));
+
+            res
+        });
+
+        data.map(|data| Texture2d::new(data, interpolation, overflow))
     }
 
     pub fn at<'a>(&'a self, x: uint, y: uint) -> &'a Vec3<f32> {
-        &'a self.data[y * self.dims.x + x]
+        let res = &'a self.data.borrow().pixels[y * self.data.borrow().dims.x + x];
+
+        res
     }
 
     pub fn sample(&self, coords: &(N, N, N)) -> Vec3<f32> {
@@ -90,9 +145,10 @@ impl Texture2d {
         match self.overflow {
             ClampToEdges => {
                 ux = ux.clamp(&0.0, &1.0);
-                uy = uy.clamp(&0.0, &1.0);
+                uy = 1.0 - uy.clamp(&0.0, &1.0);
             }
             Wrap => {
+                uy = -uy;
                 ux = ux % 1.0;
                 uy = uy % 1.0;
 
@@ -101,8 +157,8 @@ impl Texture2d {
             }
         }
 
-        ux = ux * ((self.dims.x - 1) as f32);
-        uy = uy * ((self.dims.y - 1) as f32);
+        ux = ux * ((self.data.borrow().dims.x - 1) as f32);
+        uy = uy * ((self.data.borrow().dims.y - 1) as f32);
 
         match self.interpol {
             Nearest => {
