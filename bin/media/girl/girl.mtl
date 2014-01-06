@@ -1,0 +1,182 @@
+# 
+# Wavefront material file
+# Converted by the DEEP Exploration  Deep Exploration 5.5 5.5.3.2642 Release
+# Right Hemisphere, LTD
+# http://www.righthemisphere.com/
+# 
+
+newmtl _ea80e0f_png
+Ka 0.7 0.7 0.7
+Kd 1 1 1
+Ks 1 1 1
+illum 2
+Ns 4
+map_Kd 3ea80e0f.png
+map_bump 
+bump 
+map_opacity 
+map_d 
+refl 
+map_kS 
+map_kA 
+map_Ns 
+
+newmtl abbec2ad_png
+Ka 0.7 0.7 0.7
+Kd 1 1 1
+Ks 1 1 1
+illum 2
+Ns 4
+map_Kd abbec2ad.png
+map_bump 
+bump 
+map_opacity abbec2ad.png
+map_d abbec2ad.png
+refl 
+map_kS 
+map_kA 
+map_Ns 
+
+newmtl cc5a76c0_png
+Ka 0.7 0.7 0.7
+Kd 1 1 1
+Ks 1 1 1
+illum 2
+Ns 4
+map_Kd cc5a76c0.png
+map_bump 
+bump 
+map_opacity cc5a76c0.png
+map_d cc5a76c0.png
+refl 
+map_kS 
+map_kA 
+map_Ns 
+
+newmtl _919bbeb_png
+Ka 0.7 0.7 0.7
+Kd 1 1 1
+Ks 1 1 1
+illum 2
+Ns 4
+map_Kd 3919bbeb.png
+map_bump 
+bump 
+map_opacity 3919bbeb.png
+map_d 3919bbeb.png
+refl 
+map_kS 
+map_kA 
+map_Ns 
+
+newmtl _8be34e5_png
+Ka 0.7 0.7 0.7
+Kd 1 1 1
+Ks 1 1 1
+illum 2
+Ns 4
+map_Kd 38be34e5.png
+map_bump 
+bump 
+map_opacity 38be34e5.png
+map_d 38be34e5.png
+refl 
+map_kS 
+map_kA 
+map_Ns 
+
+newmtl c5b56029_png
+Ka 0.7 0.7 0.7
+Kd 1 1 1
+Ks 1 1 1
+illum 2
+Ns 4
+map_Kd c5b56029.png
+map_bump 
+bump 
+map_opacity c5b56029.png
+map_d c5b56029.png
+refl 
+map_kS 
+map_kA 
+map_Ns 
+
+newmtl _7ed3ecb_png
+Ka 0.7 0.7 0.7
+Kd 1 1 1
+Ks 1 1 1
+illum 2
+Ns 4
+map_Kd 67ed3ecb.png
+map_bump 
+bump 
+map_opacity 67ed3ecb.png
+map_d 67ed3ecb.png
+refl 
+map_kS 
+map_kA 
+map_Ns 
+
+newmtl _c203d00_png
+Ka 0.7 0.7 0.7
+Kd 1 1 1
+Ks 1 1 1
+illum 2
+Ns 4
+map_Kd 5c203d00.png
+map_bump 
+bump 
+map_opacity 5c203d00.png
+map_d 5c203d00.png
+refl 
+map_kS 
+map_kA 
+map_Ns 
+
+newmtl _376b488_png
+Ka 0.7 0.7 0.7
+Kd 1 1 1
+Ks 1 1 1
+illum 2
+Ns 4
+map_Kd 1376b488.png
+map_bump 
+bump 
+map_opacity 1376b488.png
+map_d 1376b488.png
+refl 
+map_kS 
+map_kA 
+map_Ns 
+
+newmtl d117864b_png
+Ka 0.7 0.7 0.7
+Kd 1 1 1
+Ks 1 1 1
+illum 2
+Ns 4
+map_Kd d117864b.png
+map_bump 
+bump 
+map_opacity d117864b.png
+map_d d117864b.png
+refl 
+map_kS 
+map_kA 
+map_Ns 
+
+newmtl Material__3880
+Ka 0.7 0.7 0.7
+Kd 0.7 0.7 0.7
+Ks 1 1 1
+illum 2
+Ns 4
+map_Kd 
+map_bump 
+bump 
+map_opacity 
+map_d 
+refl 
+map_kS 
+map_kA 
+map_Ns 

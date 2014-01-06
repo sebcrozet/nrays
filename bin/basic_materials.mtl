@@ -1,0 +1,20 @@
+newmtl blue
+Ns 100
+Ka 0.0 0.0 0.1
+Kd 0.0 0.0 1.0
+
+newmtl red
+Ns 100
+Ka 0.1 0.0 0.0
+Kd 1.0 0.0 0.0
+
+newmtl green
+Ns 100
+Ka 0.0 0.1 0.0
+Kd 0.0 1.0 0.0
+
+newmtl globe
+Ns 100
+Ka 1.0 1.0 1.0
+Kd 1.0 1.0 1.0
+map_Kd globe.png
