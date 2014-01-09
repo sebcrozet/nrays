@@ -146,54 +146,24 @@ impl Scene {
             self.world.visit(&mut collector);
         }
 
-        for i in interferences.iter() {
-            let toi = i.geometry.toi_with_transform_and_ray(&i.transform, ray);
-
-            match toi {
-                None    => { },
-                Some(t) => if t <= maxtoi { return true }
+        self.world.cast_ray(ray, &|b, r| {
+            match b.geometry.toi_with_transform_and_ray(&b.transform, r) {
+                None    => None,
+                Some(t) => if t <= maxtoi { Some((na::cast(-1.0), t)) } else { None }
             }
-        }
-
-        false
+        }).is_some()
     }
 
     pub fn trace(&self, ray: &RayWithEnergy) -> Vec3<f32> {
-        // FIXME: avoid allocations
-        let mut interferences: ~[@SceneNode] = ~[];
+        let cast = self.world.cast_ray(&ray.ray, &|b, r| { b.cast(r).map(|(t, n, u)| (t, (t, n, u))) });
 
-        {
-            let mut collector = RayInterferencesCollector::new(&ray.ray, &mut interferences);
-            self.world.visit(&mut collector);
-        }
-
-        let mut intersection = None;
-        let mut mintoi:    N                 = Bounded::max_value();
-        let mut minnormal: V                 = na::zero();
-        let mut minuvs:    Option<(N, N, N)> = None;
-        for i in interferences.iter() {
-            let toi = i.cast(&ray.ray);
-
-            match toi {
-                None => { },
-                Some((toi, normal, uvs)) => {
-                    if toi < mintoi {
-                        mintoi       = toi;
-                        minnormal    = normal;
-                        minuvs       = uvs;
-                        intersection = Some(i);
-                    }
-                }
-            }
-        }
-
-        match intersection {
+        match cast {
             None     => Vec3::new(0.0, 0.0, 0.0),
-            Some(sn) => {
-                let inter = ray.ray.orig + ray.ray.dir * mintoi;
+            Some((_, toi, sn)) => {
+                let inter = ray.ray.orig + ray.ray.dir * *toi.n0_ref();
 
-                let obj  = sn.material.compute(ray, &inter, &minnormal, &minuvs, self);
-                let refl = sn.refl.compute(ray, &inter, &minnormal, &minuvs, self);
+                let obj  = sn.material.compute(ray, &inter, toi.n1_ref(), toi.n2_ref(), self);
+                let refl = sn.refl.compute(ray, &inter, toi.n1_ref(), toi.n2_ref(), self);
 
                 obj * (1.0 - sn.refl.mix)+ refl * sn.refl.mix
             }

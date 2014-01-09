@@ -1,21 +1,33 @@
 camera
     output out.png
     resolution 1024 1024
-    eye  0.0 1.0 2.5
-    at   0.0 1.0 0.0
+    eye  0.0 0.25 -1.05
+    at   0.0 0.25 0.0
     fovy 45.0
+    aa 4 0.1
 
 light
-    pos   0.0 0.0 5.0
-    color 1.0 1.0 1.0
+    pos   1.0 3.0 -1.05
+    color 0.5 0.5 0.5
+    nsample 10
+    radius  0.25
 
 light
-    pos   0.0 5.0 5.0
-    color 1.0 1.0 1.0
+    pos   -1.0 3.0 -1.05
+    color 0.5 0.5 0.5
+    nsample 10
+    radius  0.1
 
 geometry
-    obj      media/girl/girl.obj media/girl
+    obj      media/girl2/Girl.obj media/girl2
     pos      0.0 0.0 0.0
     angle    -90.0 0.0 0.0
     material default
-    refl     0.2 0.5
+    refl     0.0 0.0
+
+geometry
+    plane 0.0 1.0 0.0
+    pos   0.0 0.0 0.0
+    angle 0.0 0.0 0.0
+    material default
+    refl 0.2 0.5

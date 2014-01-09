@@ -7,3 +7,6 @@
 [submodule "lib/rust-png"]
 	path = lib/rust-png
 	url = https://github.com/sebcrozet/rust-png.git
+[submodule "lib/rust-stb-image"]
+	path = lib/rust-stb-image
+	url = git://github.com/sebcrozet/rust-stb-image.git

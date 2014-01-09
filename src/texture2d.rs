@@ -1,7 +1,8 @@
 use std::rc::Rc;
 use std::hashmap::HashMap;
 use std::local_data;
-use png;
+use stb_image::image::ImageU8;
+use stb_image::image;
 use nalgebra::na::{Vec3, Vec2};
 use ncollide::math::N;
 
@@ -81,42 +82,47 @@ impl Texture2d {
             let res = match tm.loaded.find(&path.as_str().unwrap().to_owned()) {
                 Some(data) => Some(data.clone()),
                 None => {
-                    let img = png::load_png(path);
-                    if !img.is_ok() {
-                        None
-                    }
-                    else {
-                        let     img  = img.unwrap();
-                        let mut data = ~[];
+                    match image::load(path.as_str().unwrap().to_owned()) {
+                        ImageU8(mut image) => {
+                            let mut data = ~[];
 
-                        match img.color_type {
-                            png::RGB8 => {
-                                for p in img.pixels.chunks(3) {
-                                    let r = p[0] as f32 / 255.0;
-                                    let g = p[1] as f32 / 255.0;
-                                    let b = p[2] as f32 / 255.0;
-
-                                    data.push(Vec3::new(r, g, b));
+                            // Flip the y axis
+                            let elt_per_row = image.width * image.depth;
+                            for j in range(0u, image.height / 2) {
+                                for i in range(0u, elt_per_row) {
+                                    image.data.swap(
+                                        (image.height - j - 1) * elt_per_row + i,
+                                        j * elt_per_row + i)
                                 }
-
-                                Some(Rc::new(ImageData::new(data,
-                                             Vec2::new(img.width as uint, img.height as uint))))
-                            },
-                            png::RGBA8 => {
-                                for p in img.pixels.chunks(4) {
-                                    let r = p[0] as f32 / 255.0;
-                                    let g = p[1] as f32 / 255.0;
-                                    let b = p[2] as f32 / 255.0;
-
-                                    data.push(Vec3::new(r, g, b));
-                                }
-
-                                Some(Rc::new(ImageData::new(data,
-                                             Vec2::new(img.width as uint, img.height as uint))))
-                            },
-                            _         => {
-                                fail!("Unsuported data type.")
                             }
+
+                            if image.depth == 3 {
+                                for p in image.data.chunks(3) {
+                                    let r = p[0] as f32 / 255.0;
+                                    let g = p[1] as f32 / 255.0;
+                                    let b = p[2] as f32 / 255.0;
+
+                                    data.push(Vec3::new(r, g, b));
+                                }
+
+                                Some(Rc::new(ImageData::new(data,
+                                Vec2::new(image.width as uint, image.height as uint))))
+                            }
+                            else {
+                                for p in image.data.chunks(4) {
+                                    let r = p[0] as f32 / 255.0;
+                                    let g = p[1] as f32 / 255.0;
+                                    let b = p[2] as f32 / 255.0;
+
+                                    data.push(Vec3::new(r, g, b));
+                                }
+
+                                Some(Rc::new(ImageData::new(data,
+                                Vec2::new(image.width as uint, image.height as uint))))
+                            }
+                        },
+                        _ => {
+                            None
                         }
                     }
                 }
@@ -145,10 +151,9 @@ impl Texture2d {
         match self.overflow {
             ClampToEdges => {
                 ux = ux.clamp(&0.0, &1.0);
-                uy = 1.0 - uy.clamp(&0.0, &1.0);
+                uy = uy.clamp(&0.0, &1.0);
             }
             Wrap => {
-                uy = -uy;
                 ux = ux % 1.0;
                 uy = uy % 1.0;
 

@@ -47,11 +47,9 @@ fn main() {
 
     let refl = ReflectiveMaterial::new(0.4, 0.2);
     let blue = @PhongMaterial::new(
+        Vec3::new(0.1, 0.1, 0.1),
         Vec3::new(1.0, 1.0, 1.0),
         Vec3::new(1.0, 1.0, 1.0),
-        0.0,
-        0.6,
-        0.4,
         None,
         100.0
     ) as @Material;

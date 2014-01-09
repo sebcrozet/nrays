@@ -7,6 +7,7 @@ extern mod extra;
 extern mod nalgebra;
 extern mod ncollide = "ncollide4df64";
 extern mod png;
+extern mod stb_image;
 
 pub mod scene_node;
 pub mod scene;

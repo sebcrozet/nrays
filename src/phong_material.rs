@@ -11,30 +11,24 @@ use texture2d::Texture2d;
 pub struct PhongMaterial {
     diffuse_color:      Vec3<f32>,
     ambiant_color:      Vec3<f32>,
+    specular_color:     Vec3<f32>,
     texture:            Option<Texture2d>, // FIXME: put this on an ARC?
-    ka:                 f32,
-    kd:                 f32,
-    ks:                 f32,
-    alpha:              f32 // FIXME: rename that
+    shininess:          f32 // FIXME: rename that
 }
 
 impl PhongMaterial {
     pub fn new(ambiant_color:      Vec3<f32>,
                diffuse_color:      Vec3<f32>,
-               ka:                 f32,
-               kd:                 f32,
-               ks:                 f32,
+               specular_color:     Vec3<f32>,
                texture:            Option<Texture2d>,
-               alpha:              f32)
+               shininess:          f32)
                -> PhongMaterial {
         PhongMaterial {
-            diffuse_color:      diffuse_color,
-            ambiant_color:      ambiant_color,
-            ka:                 ka,
-            kd:                 kd,
-            ks:                 ks,
-            texture:            texture,
-            alpha:              alpha
+            diffuse_color:  diffuse_color,
+            ambiant_color:  ambiant_color,
+            specular_color: specular_color,
+            texture:        texture,
+            shininess:      shininess
         }
     }
 }
@@ -48,53 +42,59 @@ impl Material for PhongMaterial {
                scene:  &Scene)
                -> Vec3<f32> {
         // initialize with the ambiant color
-        let mut res = self.ambiant_color * self.ka;
+        let mut res;
+        let tex_color;
+        
+        if na::dim::<V>() == 3 && uvs.is_some() && self.texture.is_some() {
+            let uvs     = uvs.as_ref().unwrap();
+            let tex     = self.texture.as_ref().unwrap();
+            let texture = tex.sample(uvs);
+            tex_color   = texture / 2.0f32
+        }
+        else {
+            tex_color = Vec3::new(1.0f32, 1.0, 1.0)
+        }
+
+        res = self.ambiant_color * tex_color;
 
         // compute the contribution of each light
         for light in scene.lights().iter() {
             let mut acc = Vec3::new(0.0f32, 0.0, 0.0);
-            light.sample(light.nsample, |pos| {
+            light.sample(|pos| {
                 let mut ldir = pos - *point;
                 let     dist = ldir.normalize() - na::cast(0.001);
 
                 if !scene.intersects_ray(&Ray::new(point + ldir * na::cast::<f32, N>(0.001), ldir.clone()), dist) {
                     let dot_ldir_norm = na::dot(&ldir, normal);
 
+                    if *normal != *normal {
+                        println!("{:?}", normal)
+                    }
                     // diffuse
-                    let dcoeff: f32   = NumCast::from(dot_ldir_norm.clone()).expect("Conversion failed.");
+                    let dcoeff: f32   = NumCast::from(dot_ldir_norm.clone()).expect("[0] Conversion failed.");
                     let dcoeff        = dcoeff.max(&0.0);
-                    let diffuse_color;
+                    let diffuse_color = self.diffuse_color * tex_color;
 
-                    if na::dim::<V>() == 3 && uvs.is_some() && self.texture.is_some() {
-                        let uvs       = uvs.as_ref().unwrap();
-                        let tex       = self.texture.as_ref().unwrap();
-                        let texture   = tex.sample(uvs);
-                        diffuse_color = texture / 2.0f32
-                    }
-                    else {
-                        diffuse_color = self.diffuse_color;
-                    }
-
-                    let diffuse = (light.color * diffuse_color) * dcoeff;
+                    let diffuse = diffuse_color * dcoeff;
 
                     // specular
                     let lproj = normal * dot_ldir_norm;
                     let rldir = na::normalize(&(-ldir + lproj * na::cast::<f32, N>(2.0)));
 
-                    let scoeff: f32 = NumCast::from(-na::dot(&rldir, &ray.ray.dir)).expect("Conversion failed.");
+                    let scoeff: f32 = NumCast::from(-na::dot(&rldir, &ray.ray.dir)).expect("[1] Conversion failed.");
                     if scoeff > na::zero() {
-                        let scoeff   = scoeff.pow(&self.alpha);
-                        let specular = light.color * scoeff;
+                        let scoeff   = scoeff.pow(&self.shininess);
+                        let specular = self.specular_color * scoeff;
 
-                        acc = acc + diffuse * self.kd + specular * self.ks;
+                        acc = acc + light.color * (diffuse + specular);
                     }
                     else {
-                        acc = acc + diffuse * self.kd;
+                        acc = acc + light.color * diffuse;
                     }
                 }
             });
 
-            res = res + acc / (light.nsample as f32);
+            res = res + acc / ((light.racsample * light.racsample) as f32);
         }
 
         res

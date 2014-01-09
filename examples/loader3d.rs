@@ -76,12 +76,9 @@ fn main() {
             let device_x = (pt.x / c.resolution.x - 0.5) * 2.0;
             let device_y = -(pt.y / c.resolution.y - 0.5) * 2.0;
             let start = Vec4::new(device_x, device_y, -1.0, 1.0);
-            let end   = Vec4::new(device_x, device_y, 1.0, 1.0);
             let h_eye = projection * start;
-            let h_at  = projection * end;
             let eye: Vec3<f64> = na::from_homogeneous(&h_eye);
-            let at:  Vec3<f64> = na::from_homogeneous(&h_at);
-            Ray::new(eye, na::normalize(&(at - eye)))
+            Ray::new(c.eye, na::normalize(&(eye - c.eye)))
         });
         println!("Rays cast.");
 
@@ -201,9 +198,7 @@ fn parse(string: &str) -> (~[Light], ~[@SceneNode], ~[Camera]) {
         let white = @PhongMaterial::new(
             Vec3::new(0.1, 0.1, 0.1),
             Vec3::new(1.0, 1.0, 1.0),
-            0.1,
-            0.7,
-            0.2,
+            Vec3::new(1.0, 1.0, 1.0),
             None,
             100.0
         ) as @Material;
@@ -372,9 +367,7 @@ fn register_mtllib(path: &str, mtllib: &mut HashMap<~str, @Material>) {
         let color = @PhongMaterial::new(
             m.ambiant,
             m.diffuse,
-            0.1,
-            0.7,
-            0.2,
+            m.specular,
             t,
             m.shininess
             ) as @Material;
@@ -430,40 +423,50 @@ fn register_geometry(props:  Properties,
             let mtlpath = Path::new(mtlpath);
             let os      = obj::parse_file(&Path::new(objpath), &mtlpath, "").unwrap();
 
-            for (_, o, mat) in os.move_iter() {
-                let mut o   = o;
-                let faces   = o.mut_faces().unwrap();
-                let coords  = o.mut_coords().unwrap();
-                let uvs     = o.mut_uvs().unwrap();
-                let ns      = o.mut_normals().unwrap();
+            if os.len() > 0 {
+                let coords = Arc::new(os[0].n1_ref().coords().map(|a| Vec3::new(a.x as f64, a.y as f64, a.z as f64) / 4.0));
+                let uvs    = Arc::new(os[0].n1_ref().uvs().flat_map(|a| ~[(a.x as f64, a.y as f64, 0.0)]));
+                let ns     = Arc::new(os[0].n1_ref().normals().map(|a| Vec3::new(a.x as f64, a.y as f64, a.z as f64)));
 
-                let faces  = Arc::new(faces.flat_map(|a| ~[a.x as uint, a.y as uint, a.z as uint]));
-                let uvs    = Arc::new(uvs.flat_map(|a| ~[(a.x as f64, a.y as f64, 0.0)]));
-                let coords = Arc::new(coords.map(|a| Vec3::new(a.x as f64, a.y as f64, a.z as f64) / 4.0));
-                let ns     = Arc::new(ns.map(|a| Vec3::new(a.x as f64, a.y as f64, a.z as f64)));
+                for n in ns.get().iter() {
+                    if *n != *n {
+                        fail!("This normal is wrong: {:?}", *n);
+                    }
+                }
 
-                let mesh = @Mesh::new_with_margin(coords, faces, Some(uvs), Some(ns), 0.0);
-                match mat {
-                    Some(m) => {
-                        let t = m.diffuse_texture.as_ref().map(|t| {
-                            let mut p = mtlpath.clone();
-                            p.push(t.as_slice());
-                            Texture2d::from_png(&p, Bilinear, Wrap).expect("Image not found.")
-                        });
+                for (_, o, mat) in os.move_iter() {
+                    let mut o = o;
+                    let faces = o.mut_faces().unwrap();
+                    let faces = Arc::new(faces.flat_map(|a| ~[a.x as uint, a.y as uint, a.z as uint]));
 
-                        let color = @PhongMaterial::new(
-                            m.ambiant,
-                            m.diffuse,
-                            0.1,
-                            0.7,
-                            0.2,
-                            t,
-                            m.shininess
-                            ) as @Material;
+                    let mesh = @Mesh::new_with_margin(coords.clone(), faces, Some(uvs.clone()), Some(ns.clone()), 0.0);
+                    match mat {
+                        Some(m) => {
+                            let t = match m.diffuse_texture {
+                                None        => None,
+                                Some(ref t) => {
+                                    let mut p = mtlpath.clone();
+                                    p.push(t.as_slice());
+                                    if !p.exists() {
+                                        fail!(format!("Image not found: {}", p.as_str()));
+                                    }
 
-                        nodes.push(@SceneNode::new(if special { material } else { color }, refl, transform, mesh, None));
-                    },
-                    None => nodes.push(@SceneNode::new(material, refl, transform, mesh, None))
+                                    Texture2d::from_png(&p, Bilinear, Wrap)
+                                }
+                            };
+
+                            let color = @PhongMaterial::new(
+                                m.ambiant,
+                                m.diffuse,
+                                m.specular,
+                                t,
+                                m.shininess
+                                ) as @Material;
+
+                            nodes.push(@SceneNode::new(if special { material } else { color }, refl, transform, mesh, None));
+                        },
+                        None => nodes.push(@SceneNode::new(material, refl, transform, mesh, None))
+                    }
                 }
             }
         }
