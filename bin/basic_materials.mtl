@@ -17,4 +17,4 @@ newmtl globe
 Ns 100
 Ka 1.0 1.0 1.0
 Kd 1.0 1.0 1.0
-map_Kd globe.png
+map_Kd media/globe.png

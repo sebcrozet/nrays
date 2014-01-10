@@ -41,7 +41,7 @@ pub fn parse(string: &str, mtl_base_dir: &Path, basename: &str) -> ~[(~str, Mesh
     let mut normals:    ~[Normal]           = ~[];
     let mut uvs:        ~[UV]               = ~[];
     let mut groups:     HashMap<~str, uint> = HashMap::new();
-    let mut groups_ids: ~[~[Vec3<i32>]]     = ~[];
+    let mut groups_ids: ~[~[Vec3<u32>]]     = ~[];
     let mut curr_group: uint                = 0;
     let mut ignore_normals                  = false;
     let mut ignore_uvs                      = false;
@@ -62,7 +62,7 @@ pub fn parse(string: &str, mtl_base_dir: &Path, basename: &str) -> ~[(~str, Mesh
                     match w {
                         &"v"      => coords.push(parse_v_or_vn(l, words)),
                         &"vn"     => if !ignore_normals { normals.push(parse_v_or_vn(l, words)) },
-                        &"f"      => parse_f(l, words, &mut ignore_uvs, &mut ignore_normals, &mut groups_ids, curr_group),
+                        &"f"      => parse_f(l, words, coords, uvs, normals, &mut ignore_uvs, &mut ignore_normals, &mut groups_ids, curr_group),
                         &"vt"     => if !ignore_uvs { uvs.push(parse_vt(l, words)) },
                         &"g"      => {
                             curr_group = parse_g(l, words, basename, &mut groups, &mut groups_ids);
@@ -103,7 +103,7 @@ fn parse_usemtl<'a>(l:          uint,
                     mtllib:     &HashMap<~str, MtlMaterial>,
                     group2mtl:  &mut HashMap<uint, MtlMaterial>,
                     groups:     &mut HashMap<~str, uint>,
-                    groups_ids: &mut ~[~[Vec3<i32>]],
+                    groups_ids: &mut ~[~[Vec3<u32>]],
                     curr_mtl:   &mut Option<MtlMaterial>)
                     -> uint {
     let mname = ws.to_owned_vec().connect(" ");
@@ -181,9 +181,12 @@ fn parse_v_or_vn<'a>(l: uint, mut ws: WordIterator<'a>) -> Vec3<f32> {
 
 fn parse_f<'a>(l:              uint,
                mut ws:         WordIterator<'a>,
+               coords:         &[Vec3<f32>],
+               uvs:            &[Vec2<f32>],
+               normals:        &[Vec3<f32>],
                ignore_uvs:     &mut bool,
                ignore_normals: &mut bool,
-               groups_ids:     &mut ~[~[Vec3<i32>]],
+               groups_ids:     &mut ~[~[Vec3<u32>]],
                curr_group:     uint) {
     // Four formats possible: v   v/t   v//n   v/t/n
     let mut i = 0;
@@ -212,11 +215,38 @@ fn parse_f<'a>(l:              uint,
         if curr_ids.y == Bounded::max_value() {
             *ignore_uvs = true;
         }
+
         if curr_ids.z == Bounded::max_value() {
             *ignore_normals = true;
         }
 
-        groups_ids[curr_group].push(curr_ids);
+        // Handle relatives indice
+        let x;
+        let y;
+        let z;
+
+        if curr_ids.x < 0 {
+            x = (coords.len() as i32 + curr_ids.x + 1) as u32;
+        }
+        else {
+            x = curr_ids.x as u32;
+        }
+
+        if curr_ids.y < 0 {
+            y = (uvs.len() as i32 + curr_ids.y + 1) as u32;
+        }
+        else {
+            y = curr_ids.y as u32;
+        }
+
+        if curr_ids.z < 0 {
+            z = (normals.len() as i32 + curr_ids.z + 1) as u32;
+        }
+        else {
+            z = curr_ids.z as u32;
+        }
+
+        groups_ids[curr_group].push(Vec3::new(x, y, z));
 
         i = i + 1;
     }
@@ -251,7 +281,7 @@ fn parse_g<'a>(_:          uint,
                mut ws:     WordIterator<'a>,
                prefix:     &str,
                groups:     &mut HashMap<~str, uint>,
-               groups_ids: &mut ~[~[Vec3<i32>]])
+               groups_ids: &mut ~[~[Vec3<u32>]])
                -> uint {
     let suffix = ws.to_owned_vec().connect(" ");
     let name   = if suffix.len() == 0 { prefix.to_owned() } else { prefix + "/" + suffix };
@@ -262,11 +292,10 @@ fn parse_g<'a>(_:          uint,
 fn reformat(coords:     ~[Coord],
             normals:    Option<~[Normal]>,
             uvs:        Option<~[UV]>,
-            groups_ids: ~[~[Vec3<i32>]],
+            groups_ids: ~[~[Vec3<u32>]],
             groups:     HashMap<~str, uint>,
             group2mtl:  HashMap<uint, MtlMaterial>) -> ~[(~str, Mesh, Option<MtlMaterial>)] {
-    println!("Starting normalization");
-    let mut vt2id:  HashMap<Vec3<i32>, u32> = HashMap::new();
+    let mut vt2id:  HashMap<Vec3<u32>, u32> = HashMap::new();
     let mut vertex_ids: ~[u32]      = ~[];
     let mut resc: ~[Coord]          = ~[];
     let mut resn: Option<~[Normal]> = normals.as_ref().map(|_| ~[]);
@@ -281,20 +310,13 @@ fn reformat(coords:     ~[Coord],
         mtls.push(group2mtl.find(&i).map(|m| m.clone()));
 
         for point in groups_ids[i].iter() {
-            let mut abs_point = *point;
-            if abs_point.x < 0 { abs_point.x = coords.len() as i32 + abs_point.x + 1 };
-            uvs.as_ref().map(|uvs| if abs_point.y < 0
-                    { abs_point.y = uvs.len() as i32 + abs_point.y + 1 });
-            normals.as_ref().map(|normals| if abs_point.z < 0
-                        { abs_point.z = normals.len() as i32 + abs_point.z + 1 });
-
-            let idx = match vt2id.find(&abs_point) {
+            let idx = match vt2id.find(point) {
                 Some(i) => { vertex_ids.push(*i); None },
                 None    => {
                     let idx = resc.len() as u32;
-                    resc.push(coords[abs_point.x]);
-                    resu.as_mut().map(|l| l.push(uvs.get_ref()[abs_point.y]));
-                    resn.as_mut().map(|l| l.push(normals.get_ref()[abs_point.z]));
+                    resc.push(coords[point.x]);
+                    resu.as_mut().map(|l| l.push(uvs.get_ref()[point.y]));
+                    resn.as_mut().map(|l| l.push(normals.get_ref()[point.z]));
 
                     vertex_ids.push(idx);
 
@@ -302,7 +324,7 @@ fn reformat(coords:     ~[Coord],
                 }
             };
 
-            idx.map(|i| vt2id.insert(abs_point, i));
+            idx.map(|i| vt2id.insert(point.clone(), i));
         }
 
         let mut resf = vec::with_capacity(vertex_ids.len() / 3);
@@ -318,7 +340,6 @@ fn reformat(coords:     ~[Coord],
         vertex_ids.clear();
     }
 
-    println!("Creating meshes.");
     let resn = resn.unwrap_or_else(|| mesh::compute_normals_array(resc, allfs));
     let resn = SharedImmutable(Arc::new(resn));
     let resu = resu.unwrap_or_else(|| vec::from_elem(resc.len(), na::zero()));
@@ -333,7 +354,6 @@ fn reformat(coords:     ~[Coord],
             meshes.push((name, mesh, mtl))
         }
     }
-    println!("Meshes created.");
 
     meshes
 }

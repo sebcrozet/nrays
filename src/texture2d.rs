@@ -96,7 +96,18 @@ impl Texture2d {
                                 }
                             }
 
-                            if image.depth == 3 {
+                            if image.depth == 1 {
+                                for p in image.data.iter() {
+                                    let g = *p as f32 / 255.0;
+
+                                    data.push(Vec3::new(g, g, g));
+                                }
+
+                                Some(Rc::new(ImageData::new(data,
+                                Vec2::new(image.width as uint, image.height as uint))))
+                            }
+
+                            else if image.depth == 3 {
                                 for p in image.data.chunks(3) {
                                     let r = p[0] as f32 / 255.0;
                                     let g = p[1] as f32 / 255.0;
@@ -108,7 +119,7 @@ impl Texture2d {
                                 Some(Rc::new(ImageData::new(data,
                                 Vec2::new(image.width as uint, image.height as uint))))
                             }
-                            else {
+                            else if image.depth == 4 {
                                 for p in image.data.chunks(4) {
                                     let r = p[0] as f32 / 255.0;
                                     let g = p[1] as f32 / 255.0;
@@ -119,6 +130,9 @@ impl Texture2d {
 
                                 Some(Rc::new(ImageData::new(data,
                                 Vec2::new(image.width as uint, image.height as uint))))
+                            }
+                            else {
+                                fail!("Image depth {} not suported.", image.depth);
                             }
                         },
                         _ => {
