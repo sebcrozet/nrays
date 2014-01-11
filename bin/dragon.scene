@@ -1,0 +1,26 @@
+camera
+    output out.png
+    resolution 1024 1024
+    eye  0.0 0.2 -1.10
+    at   0.0 0.2 0.0
+    fovy 25.0
+
+light
+    pos   -1.0 1.0 -2.5
+    color 1.0 1.0 1.0
+    nsample 10
+    radius 0.1
+
+geometry
+    obj      media/dragon/dragon.obj media/dragon
+    pos      0.0 0.1 0.0
+    angle    0.0 -90.0 0.0
+    material default
+    refl     0.0 0.0
+
+geometry
+    plane 0.0 1.0 0.0
+    pos   0.0 0.0 0.0
+    angle 0.0 0.0 0.0
+    material default
+    refl 0.2 0.5

@@ -1,6 +1,6 @@
 use std::vec;
 use std::io::stdio;
-use nalgebra::na::{Vec3, Iterable};
+use nalgebra::na::Vec3;
 use nalgebra::na;
 use ncollide::bounding_volume::{AABB, HasAABB};
 use ncollide::partitioning::bvt;
@@ -8,7 +8,7 @@ use ncollide::partitioning::bvt::BVT;
 use ncollide::partitioning::bvt_visitor::BVTVisitor;
 // use ncollide::partitioning::bvt_visitor::RayInterferencesCollector;
 use ncollide::ray::{Ray, RayCast, RayCastWithTransform};
-use ncollide::math::{N, V};
+use ncollide::math::N;
 use material::Material;
 use ray_with_energy::RayWithEnergy;
 use scene_node::SceneNode;
@@ -17,6 +17,10 @@ use light::Light;
 
 #[cfg(dim4)]
 use nalgebra::na::{Dim, Indexable};
+#[cfg(dim4)]
+use nalgebra::na::Iterable;
+#[cfg(dim4)]
+use ncollide::math::V;
 
 #[cfg(dim3)]
 use std::rand;

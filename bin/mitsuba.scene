@@ -1,0 +1,17 @@
+camera
+    output out.png
+    resolution 1024 1024
+    eye  0.0 0.5 4.0
+    at   0.0 0.5 0.0
+    fovy 45.0
+
+light
+    pos   0.0 5.0 40.5
+    color 0.5 0.5 0.5
+
+geometry
+    obj      media/mitsuba/mitsuba.obj media/mitsuba
+    pos      0.0 0.0 0.0
+    angle    0.0 0.0 0.0
+    material default
+    refl     0.0 0.0

@@ -1,0 +1,17 @@
+camera
+    output out.png
+    resolution 1024 1024
+    eye  -250.0 50.0 0.0
+    at   0.0 50.0 0.0
+    fovy 45.0
+
+light
+    pos   -250.0 50.0 0.0
+    color 1.0 1.0 1.0
+
+geometry
+    obj      media/crytek-sponza/sponza.obj media/crytek-sponza
+    pos      0.0 0.0 0.0
+    angle    0.0 0.0 0.0
+    material default
+    refl     0.0 0.0

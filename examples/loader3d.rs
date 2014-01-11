@@ -46,7 +46,7 @@ fn main() {
         fail!("Unable to find the file: " + path.as_str().unwrap())
     }
 
-    println("Loading the scene.");
+    println!("Loading the scene.");
     let s     = File::open(&path).expect("Cannot open the file: " + path.as_str().unwrap()).read_to_end();
     let descr = str::from_utf8_owned(s);
 
@@ -82,7 +82,7 @@ fn main() {
         });
         println!("Rays cast.");
 
-        println("Saving image to: " + c.output);
+        println!("Saving image to: {:s}", c.output);
         pixels.to_png(&Path::new(c.output));
         println!("Image saved.");
     }
@@ -251,7 +251,7 @@ fn parse(string: &str) -> (~[Light], ~[@SceneNode], ~[Camera]) {
                         &"cone"       => props.geom = Some((l, parse_cone(l, words))),
                         &"obj"        => props.geom = Some((l, parse_obj(l, words))),
                         _             => {
-                            println("Warning: unknown line " + l.to_str() + " ignored: `" + line + "'");
+                            println!("Warning: unknown line {} ignored: `{:s}'", l, line);
                         }
                     }
                 }
@@ -392,21 +392,31 @@ fn register_geometry(props:  Properties,
     fail_if_none(&props.material, props.superbloc, "material <material_name>");
     fail_if_none(&props.refl, props.superbloc, "refl <mix> <atenuation>");
 
-    let mname     = props.material.as_ref().unwrap().n1_ref();
 
-    let special   = mname.as_slice() == "uvs" || mname.as_slice() == "normals";
-    let material  = *mtllib.find(mname).unwrap_or_else(|| fail!("Attempted to use an unknown material: " + *mname));
+    let special;
+    let material;
+    let refl;
+    let transform;
+    let normals;
 
-    let pos       = props.pos.as_ref().unwrap().n1();
-    let mut angle = props.angle.as_ref().unwrap().n1();
-    angle.x = angle.x.to_radians();
-    angle.y = angle.y.to_radians();
-    angle.z = angle.z.to_radians();
-    let refl      = props.refl.as_ref().unwrap().n1();
-    let transform = Iso3::new(pos, angle);
-    let normals   = None;
+    {
+        let mname     = props.material.as_ref().unwrap().n1_ref();
+        special   = mname.as_slice() == "uvs" || mname.as_slice() == "normals";
+        material  = *mtllib.find(mname).unwrap_or_else(|| fail!("Attempted to use an unknown material: " + *mname));
 
-    let refl = ReflectiveMaterial::new(refl.x as f32, refl.y as f32);
+        let pos       = props.pos.as_ref().unwrap().n1();
+        let mut angle = props.angle.as_ref().unwrap().n1();
+
+        angle.x = angle.x.to_radians();
+        angle.y = angle.y.to_radians();
+        angle.z = angle.z.to_radians();
+
+        let refl_param = props.refl.as_ref().unwrap().n1();
+        transform = Iso3::new(pos, angle);
+        normals   = None;
+        refl = ReflectiveMaterial::new(refl_param.x as f32, refl_param.y as f32);
+    }
+
 
     match props.geom.unwrap().n1() {
         Ball(r) =>

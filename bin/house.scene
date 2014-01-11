@@ -1,0 +1,19 @@
+camera
+    output out.png
+    resolution 1024 1024
+    eye  5.5 0.5 0.5
+    at   4.0 0.5 0.5
+    fovy 70.0
+
+light
+    pos   4.0 1.5 0.5
+    color 1.0 1.0 1.0
+    nsample 10
+    radius 1.0
+
+geometry
+    obj      media/house/san-miguel.obj media/house
+    pos      0.0 0.0 0.0
+    angle    0.0 0.0 0.0
+    material default
+    refl     0.0 0.0

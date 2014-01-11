@@ -1,0 +1,24 @@
+camera
+    output out.png
+    resolution 1024 1024
+    eye  0.0 0.2 -5.0
+    at   0.0 0.2 0.0
+    fovy 25.0
+
+light
+    pos   0.0 0.2 -5.0
+    color 1.0 1.0 1.0
+
+geometry
+    obj      media/hairball/hairball.obj media/hairball
+    pos      0.0 0.1 0.0
+    angle    0.0 0.1 0.0
+    material default
+    refl     0.0 0.0
+
+# geometry
+#     plane 0.0 1.0 0.0
+#     pos   0.0 0.0 0.0
+#     angle 0.0 0.0 0.0
+#     material default
+#     refl 0.2 0.5
