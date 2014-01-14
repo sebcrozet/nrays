@@ -1,0 +1,18 @@
+camera
+    output out.png
+    resolution 1024 1024
+    eye  0.0 5.0 -60.0
+    at   0.0 5.0 0.0
+    fovy 45.0
+
+light
+    pos   0.0 1.0 -60.0
+    color 1.0 1.0 1.0
+    nsample 1
+
+geometry
+    obj      media/teapot/teapot.obj media/teapote
+    pos      0.0 0.0 0.0
+    angle    0.0 0.0 0.0
+    material normals
+    refl     0.0 0.0

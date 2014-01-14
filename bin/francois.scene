@@ -9,7 +9,7 @@ camera
     aa 4 0.1
 
 geometry
-    ball 0.5
+    box 0.5 0.5 0.5
     pos 1 -0.25 5
     angle 0 0 0
     material A

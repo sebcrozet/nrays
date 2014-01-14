@@ -1,7 +1,11 @@
 use std::rand;
-use nalgebra::na::{Vec3, Indexable};
-use nalgebra::na;
+use nalgebra::na::Vec3;
 use ncollide::math::{N, V};
+
+#[cfg(dim3)]
+use nalgebra::na::Indexable;
+#[cfg(dim3)]
+use nalgebra::na;
 
 pub struct Light {
     pos:       V,

@@ -1,13 +1,10 @@
 use std::vec;
-use std::io::stdio;
 use nalgebra::na::Vec3;
 use nalgebra::na;
 use ncollide::bounding_volume::{AABB, HasAABB};
-use ncollide::partitioning::bvt;
-use ncollide::partitioning::bvt::BVT;
-use ncollide::partitioning::bvt_visitor::BVTVisitor;
+use ncollide::partitioning::BVT;
 // use ncollide::partitioning::bvt_visitor::RayInterferencesCollector;
-use ncollide::ray::{Ray, RayCast, RayCastWithTransform};
+use ncollide::ray::{Ray, RayCastWithTransform};
 use ncollide::math::N;
 use material::Material;
 use ray_with_energy::RayWithEnergy;
@@ -19,13 +16,13 @@ use light::Light;
 use nalgebra::na::{Dim, Indexable};
 #[cfg(dim4)]
 use nalgebra::na::Iterable;
-#[cfg(dim4)]
-use ncollide::math::V;
 
 #[cfg(dim3)]
 use std::rand;
 #[cfg(dim3)]
 use nalgebra::na::Vec2;
+#[cfg(dim3)]
+use std::io::stdio;
 
 pub struct Scene {
     priv lights: ~[Light],
@@ -46,7 +43,7 @@ impl Scene {
             nodes_w_bvs.push((n, n.aabb.clone()));
         }
 
-        let bvt = BVT::new_with_partitioner(nodes_w_bvs, bvt::kdtree_partitioner);
+        let bvt = BVT::new_kdtree(nodes_w_bvs);
 
         Scene {
             lights: lights,
@@ -76,6 +73,10 @@ impl Scene {
         let nrays = resolution.y * resolution.x * (ray_per_pixel as f64);
         println!("Tracing {} rays.", nrays as int);
         let mut rays_done = 0;
+        let mut progress  = 0;
+
+        print!("{} / {} − {}%\r", rays_done, nrays, progress);
+        stdio::flush();
 
         for j in range(0u, na::cast(resolution.y)) {
             for i in range(0u, na::cast(resolution.x)) {
@@ -89,8 +90,13 @@ impl Scene {
 
                     let ray = unproject(&orig);
                     let c   = self.trace(&RayWithEnergy::new(ray.orig.clone(), ray.dir));
-                    print!("{} / {} − {}%\r", rays_done, nrays, ((rays_done as f64) / nrays * 100.0) as int);
-                    stdio::flush();
+                    let new_progress = ((rays_done as f64) / nrays * 100.0) as int;
+
+                    if new_progress != progress {
+                        progress = new_progress;
+                        print!("{} / {} − {}%\r", rays_done, nrays, progress);
+                        stdio::flush();
+                    }
 
                     tot_c = tot_c + c;
                 }
@@ -142,14 +148,6 @@ impl Scene {
     }
 
     pub fn intersects_ray(&self, ray: &Ray, maxtoi: N) -> bool {
-        // FIXME: avoid allocations
-        let mut interferences: ~[@SceneNode] = ~[];
-
-        {
-            let mut collector = RayInterferencesCollector::new(ray, &mut interferences);
-            self.world.visit(&mut collector);
-        }
-
         self.world.cast_ray(ray, &|b, r| {
             match b.geometry.toi_with_transform_and_ray(&b.transform, r) {
                 None    => None,
@@ -171,46 +169,6 @@ impl Scene {
 
                 obj * (1.0 - sn.refl.mix)+ refl * sn.refl.mix
             }
-        }
-    }
-}
-
-/*
- * ----------------------------------------------------------------------------------------------
- *
- * XXX: This is an exact duplicate of lib/ncollide/src/partitioning/bvt_visitor.rs#RayInterferencesCollector
- * This does not compile cross-crate (ICE).
- *
- * ----------------------------------------------------------------------------------------------
- */
-/// Bounding Volume Tree visitor collecting interferences with a given ray.
-pub struct RayInterferencesCollector<'a, B> {
-    priv ray:       &'a Ray,
-    priv collector: &'a mut ~[B]
-}
-
-impl<'a, B> RayInterferencesCollector<'a, B> {
-    /// Creates a new `RayInterferencesCollector`.
-    #[inline]
-    pub fn new(ray: &'a Ray, buffer: &'a mut ~[B])
-               -> RayInterferencesCollector<'a, B> {
-        RayInterferencesCollector {
-            ray:       ray,
-            collector: buffer
-        }
-    }
-}
-
-impl<'a, B: Clone, BV: RayCast> BVTVisitor<B, BV> for RayInterferencesCollector<'a, B> {
-    #[inline]
-    fn visit_internal(&mut self, bv: &BV) -> bool {
-        bv.intersects_ray(self.ray)
-    }
-
-    #[inline]
-    fn visit_leaf(&mut self, b: &B, bv: &BV) {
-        if bv.intersects_ray(self.ray) {
-            self.collector.push(b.clone())
         }
     }
 }
