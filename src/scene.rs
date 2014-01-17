@@ -8,6 +8,7 @@ use ncollide::ray::{Ray, RayCastWithTransform};
 use ncollide::math::N;
 use material::Material;
 use ray_with_energy::RayWithEnergy;
+use light_path::LightPath;
 use scene_node::SceneNode;
 use image::Image;
 use light::Light;
@@ -59,7 +60,7 @@ impl Scene {
     }
 
     #[cfg(dim3)]
-    pub fn render(&self,
+    pub fn render(&mut self,
                   resolution:    &Vless,
                   ray_per_pixel: uint,
                   window_width:  N,
@@ -76,7 +77,28 @@ impl Scene {
         let mut progress  = 0;
 
         print!("{} / {} − {}%\r", rays_done, nrays, progress);
-        stdio::flush();
+
+        let nb_lights = self.lights().len();
+        let mut light_progress = 0;
+
+        let mut extra_lights: ~[Light] = ~[];
+        // Light tracing
+        for light in self.lights.iter() {
+            print!("Processing light\n");
+            light.sample(|pos| {
+                let dir  = pos - light.pos();
+                let mut path : &mut LightPath = &mut LightPath::new(pos, dir, light.color);
+                self.trace_light(path);
+                extra_lights.push(Light::new(path.last_intersection, 1.0, 1, path.color));
+                light_progress = light_progress + 1;
+                let percentage = ((light_progress as f64) / (nb_lights as f64) * 100.0) as int;
+                print!("lights done {} \n", percentage);
+            });
+        }
+
+        for l in extra_lights.iter() {
+            self.lights.push(*l);
+        }
 
         for j in range(0u, na::cast(resolution.y)) {
             for i in range(0u, na::cast(resolution.x)) {
@@ -170,5 +192,20 @@ impl Scene {
                 obj * (1.0 - sn.refl.mix)+ refl * sn.refl.mix
             }
         }
+    }
+
+    pub fn trace_light(&self, path: &mut LightPath) {
+        let cast = self.world.cast_ray(&path.ray, &|b, r| { b.cast(r).map(|(t, n, u)| (t, (t, n, u))) });
+        match cast {
+            None     => (),
+            Some((_, toi, sn)) => {
+                let inter = path.ray.orig + path.ray.dir * *toi.n0_ref();
+
+                path.last_intersection = inter;
+                sn.material.compute_for_light_path(path, &inter, toi.n1_ref(), toi.n2_ref(), self);
+                path.mix_coef = sn.refl.mix;
+                sn.refl.compute_for_light_path(path, &inter, toi.n1_ref(), toi.n2_ref(), self);
+            }
+        };
     }
 }

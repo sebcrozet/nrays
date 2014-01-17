@@ -54,7 +54,7 @@ fn main() {
     let nnodes  = nodes.len();
     let nlights = lights.len();
     let ncams   = cameras.len();
-    let scene   = Scene::new(nodes, lights);
+    let mut scene   = Scene::new(nodes, lights);
     println!("Scene loaded. {} lights, {} objects, {} cameras.", nlights, nnodes, ncams);
 
     for c in cameras.move_iter() {

@@ -3,6 +3,7 @@ use nalgebra::na;
 use ncollide::math::{N, V};
 use ncollide::ray::Ray;
 use ray_with_energy::RayWithEnergy;
+use light_path::LightPath;
 use scene::Scene;
 use material::Material;
 use texture2d::Texture2d;
@@ -44,7 +45,7 @@ impl Material for PhongMaterial {
         // initialize with the ambiant color
         let mut res;
         let tex_color;
-        
+
         if na::dim::<V>() == 3 && uvs.is_some() && self.texture.is_some() {
             let uvs     = uvs.as_ref().unwrap();
             let tex     = self.texture.as_ref().unwrap();
@@ -99,4 +100,71 @@ impl Material for PhongMaterial {
 
         res
     }
+
+    fn compute_for_light_path(&self,
+               path:    &mut LightPath,
+               point:  &V,
+               normal: &V,
+               uvs:    &Option<(N, N, N)>,
+               scene:  &Scene) {
+        // initialize with the ambiant color
+        let mut res;
+        let tex_color;
+
+        if na::dim::<V>() == 3 && uvs.is_some() && self.texture.is_some() {
+            let uvs     = uvs.as_ref().unwrap();
+            let tex     = self.texture.as_ref().unwrap();
+            let texture = tex.sample(uvs);
+            tex_color   = texture / 2.0f32
+        }
+        else {
+            tex_color = Vec3::new(1.0f32, 1.0, 1.0)
+        }
+
+        res = self.ambiant_color * tex_color;
+
+        // compute the contribution of each light
+        for light in scene.lights().iter() {
+            let mut acc = Vec3::new(0.0f32, 0.0, 0.0);
+            light.sample(|pos| {
+                let mut ldir = pos - *point;
+                let     dist = ldir.normalize() - na::cast(0.001);
+
+                if !scene.intersects_ray(&Ray::new(point + ldir * na::cast::<f32, N>(0.001), ldir.clone()), dist) {
+                    let dot_ldir_norm = na::dot(&ldir, normal);
+
+                    if *normal != *normal {
+                        println!("{:?}", normal)
+                    }
+                    // diffuse
+                    let dcoeff: f32   = NumCast::from(dot_ldir_norm.clone()).expect("[0] Conversion failed.");
+                    let dcoeff        = dcoeff.max(&0.0);
+                    let diffuse_color = self.diffuse_color * tex_color;
+
+                    let diffuse = diffuse_color * dcoeff;
+
+                    // specular
+                    let lproj = normal * dot_ldir_norm;
+                    let rldir = na::normalize(&(-ldir + lproj * na::cast::<f32, N>(2.0)));
+
+                    let scoeff: f32 = NumCast::from(-na::dot(&rldir, &path.ray.dir)).expect("[1] Conversion failed.");
+                    if scoeff > na::zero() {
+                        let scoeff   = scoeff.pow(&self.shininess);
+                        let specular = self.specular_color * scoeff;
+
+                        acc = acc + light.color * (diffuse + specular);
+                    }
+                    else {
+                        acc = acc + light.color * diffuse;
+                    }
+                }
+            });
+
+            res = res + acc / ((light.racsample * light.racsample) as f32);
+        }
+
+        path.color = path.color * (1.0f32 - path.mix_coef) + res * path.mix_coef;
+    }
+
+
 }

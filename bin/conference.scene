@@ -1,3 +1,5 @@
+mtllib basic_materials.mtl
+
 camera
     output out.png
     resolution 1024 1024
@@ -6,8 +8,11 @@ camera
     fovy 89.0
 
 light
-    pos   -125.0 125.0 0.0
+    pos   30.0 20.0 -20.0
     color 1.0 1.0 1.0
+    nsample 25
+    radius 0.25
+
 
 geometry
     obj      media/conference/conference.obj media/conference

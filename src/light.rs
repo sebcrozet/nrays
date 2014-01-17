@@ -24,6 +24,10 @@ impl Light {
         }
     }
 
+    pub fn pos(&self) -> V {
+        self.pos
+    }
+
     #[cfg(dim3)]
     pub fn sample<T>(&self, f: |V| -> T) {
         for i in range(0u, self.racsample) {
