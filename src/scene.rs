@@ -4,7 +4,7 @@ use nalgebra::na;
 use ncollide::bounding_volume::{AABB, HasAABB};
 use ncollide::partitioning::BVT;
 // use ncollide::partitioning::bvt_visitor::RayInterferencesCollector;
-use ncollide::ray::{Ray, RayCastWithTransform};
+use ncollide::ray::{Ray, RayCast};
 use ncollide::math::N;
 use material::Material;
 use ray_with_energy::RayWithEnergy;

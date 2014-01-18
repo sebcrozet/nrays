@@ -14,7 +14,7 @@ use std::io::fs::File;
 use std::os;
 use std::util;
 use std::str;
-use std::str::WordIterator;
+use std::str::Words;
 use std::hashmap::HashMap;
 use extra::arc::Arc;
 use nalgebra::na::{Vec2, Vec3, Vec4, Iso3};
@@ -483,7 +483,7 @@ fn register_geometry(props:  Properties,
     }
 }
 
-fn parse_triplet<'a>(l: uint, mut ws: WordIterator<'a>) -> Vec3<f64> {
+fn parse_triplet<'a>(l: uint, mut ws: Words<'a>) -> Vec3<f64> {
     let sx = ws.next().unwrap_or_else(|| error(l, "3 components were expected, found 0."));
     let sy = ws.next().unwrap_or_else(|| error(l, "3 components were expected, found 1."));
     let sz = ws.next().unwrap_or_else(|| error(l, "3 components were expected, found 2."));
@@ -499,11 +499,11 @@ fn parse_triplet<'a>(l: uint, mut ws: WordIterator<'a>) -> Vec3<f64> {
     Vec3::new(x, y, z)
 }
 
-fn parse_name<'a>(_: uint, mut ws: WordIterator<'a>) -> ~str {
+fn parse_name<'a>(_: uint, mut ws: Words<'a>) -> ~str {
     ws.to_owned_vec().connect(" ")
 }
 
-fn parse_number<'a>(l: uint, mut ws: WordIterator<'a>) -> f64 {
+fn parse_number<'a>(l: uint, mut ws: Words<'a>) -> f64 {
     let sx = ws.next().unwrap_or_else(|| error(l, "1 component was expected, found 0."));
 
     let x: Option<f64> = FromStr::from_str(sx);
@@ -513,7 +513,7 @@ fn parse_number<'a>(l: uint, mut ws: WordIterator<'a>) -> f64 {
     x
 }
 
-fn parse_duet<'a>(l: uint, mut ws: WordIterator<'a>) -> Vec2<f64> {
+fn parse_duet<'a>(l: uint, mut ws: Words<'a>) -> Vec2<f64> {
     let sx = ws.next().unwrap_or_else(|| error(l, "2 components were expected, found 0."));
     let sy = ws.next().unwrap_or_else(|| error(l, "2 components were expected, found 1."));
 
@@ -526,37 +526,37 @@ fn parse_duet<'a>(l: uint, mut ws: WordIterator<'a>) -> Vec2<f64> {
     Vec2::new(x, y)
 }
 
-fn parse_ball<'a>(l: uint, ws: WordIterator<'a>) -> Geometry {
+fn parse_ball<'a>(l: uint, ws: Words<'a>) -> Geometry {
     let radius = parse_number(l, ws);
 
     Ball(radius)
 }
 
-fn parse_box<'a>(l: uint, ws: WordIterator<'a>) -> Geometry {
+fn parse_box<'a>(l: uint, ws: Words<'a>) -> Geometry {
     let extents = parse_triplet(l, ws);
 
     Box(extents)
 }
 
-fn parse_plane<'a>(l: uint, ws: WordIterator<'a>) -> Geometry {
+fn parse_plane<'a>(l: uint, ws: Words<'a>) -> Geometry {
     let normal = na::normalize(&parse_triplet(l, ws));
 
     Plane(normal)
 }
 
-fn parse_cylinder<'a>(l: uint, ws: WordIterator<'a>) -> Geometry {
+fn parse_cylinder<'a>(l: uint, ws: Words<'a>) -> Geometry {
     let v = parse_duet(l, ws);
 
     Cylinder(v.x, v.y)
 }
 
-fn parse_cone<'a>(l: uint, ws: WordIterator<'a>) -> Geometry {
+fn parse_cone<'a>(l: uint, ws: Words<'a>) -> Geometry {
     let v = parse_duet(l, ws);
 
     Cone(v.x, v.y)
 }
 
-fn parse_obj<'a>(l: uint, mut ws: WordIterator<'a>) -> Geometry {
+fn parse_obj<'a>(l: uint, mut ws: Words<'a>) -> Geometry {
     let objpath = ws.next().unwrap_or_else(|| error(l, "2 paths were expected, found 0."));
     let mtlpath = ws.next().unwrap_or_else(|| error(l, "2 paths were expected, found 1."));
 

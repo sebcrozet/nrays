@@ -1,3 +1,4 @@
+use std::num;
 use nalgebra::na::{Vec3, Norm};
 use nalgebra::na;
 use ncollide::math::{N, V};
@@ -83,7 +84,7 @@ impl Material for PhongMaterial {
 
                     let scoeff: f32 = NumCast::from(-na::dot(&rldir, &ray.ray.dir)).expect("[1] Conversion failed.");
                     if scoeff > na::zero() {
-                        let scoeff   = scoeff.pow(&self.shininess);
+                        let scoeff   = num::powf(scoeff.clone(), self.shininess);
                         let specular = self.specular_color * scoeff;
 
                         acc = acc + light.color * (diffuse + specular);
