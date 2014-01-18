@@ -3,7 +3,10 @@
 #[warn(non_camel_case_types)];
 #[feature(managed_boxes)];
 #[feature(globs)];
+#[no_uv];
 
+extern mod native;
+extern mod green;
 extern mod png;
 extern mod extra;
 extern mod nalgebra;
@@ -17,9 +20,8 @@ use std::str;
 use std::str::Words;
 use std::hashmap::HashMap;
 use extra::arc::Arc;
-use nalgebra::na::{Vec2, Vec3, Vec4, Iso3};
+use nalgebra::na::{Vec2, Vec3, Iso3};
 use nalgebra::na;
-use ncollide::ray::Ray;
 use ncollide::geom::{Plane, Ball, Cone, Cylinder, Box, Mesh};
 use nrays::scene_node::SceneNode;
 use nrays::material::Material;
@@ -29,9 +31,17 @@ use nrays::texture2d::{Texture2d, Bilinear, Wrap};
 use nrays::reflective_material::ReflectiveMaterial;
 use nrays::uv_material::UVMaterial;
 use nrays::scene::Scene;
+use nrays::scene;
 use nrays::light::Light;
 use nrays::obj;
 use nrays::mtl;
+
+#[start]
+fn start(argc: int, argv: **u8) -> int {
+    do native::start(argc, argv) {
+        main();
+    }
+}
 
 fn main() {
     let args = os::args();
@@ -54,10 +64,11 @@ fn main() {
     let nnodes  = nodes.len();
     let nlights = lights.len();
     let ncams   = cameras.len();
-    let scene   = Scene::new(nodes, lights);
+    let scene   = Arc::new(Scene::new(nodes, lights));
     println!("Scene loaded. {} lights, {} objects, {} cameras.", nlights, nnodes, ncams);
 
     for c in cameras.move_iter() {
+
         // FIXME: new_perspective is _not_ accessible as a free function.
         let perspective = na::perspective3d(
             c.resolution.x,
@@ -72,14 +83,9 @@ fn main() {
         let projection = na::to_homogeneous(&camera) * na::inv(&perspective).expect("Perspective matrix not invesible.");
 
         println!("Casting {} rays per pixels (win. {}).", c.aa.x as uint, c.aa.y);
-        let pixels = scene.render(&c.resolution, c.aa.x as uint, c.aa.y, |pt| {
-            let device_x = (pt.x / c.resolution.x - 0.5) * 2.0;
-            let device_y = -(pt.y / c.resolution.y - 0.5) * 2.0;
-            let start = Vec4::new(device_x, device_y, -1.0, 1.0);
-            let h_eye = projection * start;
-            let eye: Vec3<f64> = na::from_homogeneous(&h_eye);
-            Ray::new(c.eye, na::normalize(&(eye - c.eye)))
-        });
+
+        let pixels = scene::render(&scene, &c.resolution, c.aa.x as uint, c.aa.y, c.eye, projection);
+
         println!("Rays cast.");
 
         println!("Saving image to: {:s}", c.output);
@@ -183,7 +189,7 @@ fn warn(line: uint, err: &str) {
     println!("At line {}: {}", line, err)
 }
 
-fn parse(string: &str) -> (~[Light], ~[@SceneNode], ~[Camera]) {
+fn parse(string: &str) -> (~[Light], ~[Arc<SceneNode>], ~[Camera]) {
     let mut nodes   = ~[];
     let mut lights  = ~[];
     let mut cameras = ~[];
@@ -195,16 +201,16 @@ fn parse(string: &str) -> (~[Light], ~[@SceneNode], ~[Camera]) {
         let mut words  = line.words();
         let tag        = words.next();
 
-        let white = @PhongMaterial::new(
+        let white = Arc::new(~PhongMaterial::new(
             Vec3::new(0.1, 0.1, 0.1),
             Vec3::new(1.0, 1.0, 1.0),
             Vec3::new(1.0, 1.0, 1.0),
             None,
             100.0
-        ) as @Material;
+        ) as ~Material:Send+Freeze);
 
-        mtllib.insert(~"normals", @NormalMaterial::new() as @Material);
-        mtllib.insert(~"uvs", @UVMaterial::new() as @Material);
+        mtllib.insert(~"normals", Arc::new(~NormalMaterial::new() as ~Material:Send+Freeze));
+        mtllib.insert(~"uvs", Arc::new(~UVMaterial::new() as ~Material:Send+Freeze));
         mtllib.insert(~"default", white);
 
         match tag {
@@ -266,9 +272,9 @@ fn parse(string: &str) -> (~[Light], ~[@SceneNode], ~[Camera]) {
 
 fn register(mode:    &Mode,
             props:   Properties,
-            mtllib:  &mut HashMap<~str, @Material>,
+            mtllib:  &mut HashMap<~str, Arc<~Material:Send+Freeze>>,
             lights:  &mut ~[Light],
-            nodes:   &mut ~[@SceneNode],
+            nodes:   &mut ~[Arc<SceneNode>],
             cameras: &mut ~[Camera]) {
     match *mode {
         Light    => register_light(props, lights),
@@ -359,26 +365,26 @@ fn register_light(props: Properties, lights: &mut ~[Light]) {
     lights.push(light);
 }
 
-fn register_mtllib(path: &str, mtllib: &mut HashMap<~str, @Material>) {
+fn register_mtllib(path: &str, mtllib: &mut HashMap<~str, Arc<~Material:Send+Freeze>>) {
     let materials = mtl::parse_file(&Path::new(path)).expect("Failed to parse the mtl file: " + path);
 
     for m in materials.move_iter() {
         let t = m.diffuse_texture.as_ref().map(|t| Texture2d::from_png(&Path::new(t.as_slice()), Bilinear, Wrap).expect("Image not found."));
-        let color = @PhongMaterial::new(
+        let color = ~PhongMaterial::new(
             m.ambiant,
             m.diffuse,
             m.specular,
             t,
             m.shininess
-            ) as @Material;
+            ) as ~Material:Send+Freeze;
 
-        mtllib.insert(m.name, color);
+        mtllib.insert(m.name, Arc::new(color));
     }
 }
 
 fn register_geometry(props:  Properties,
-                     mtllib: &mut HashMap<~str, @Material>,
-                     nodes:  &mut ~[@SceneNode]) {
+                     mtllib: &mut HashMap<~str, Arc<~Material:Send+Freeze>>,
+                     nodes:  &mut ~[Arc<SceneNode>]) {
     warn_if_some(&props.eye);
     warn_if_some(&props.at);
     warn_if_some(&props.fovy);
@@ -402,7 +408,7 @@ fn register_geometry(props:  Properties,
     {
         let mname     = props.material.as_ref().unwrap().n1_ref();
         special   = mname.as_slice() == "uvs" || mname.as_slice() == "normals";
-        material  = *mtllib.find(mname).unwrap_or_else(|| fail!("Attempted to use an unknown material: " + *mname));
+        material  = mtllib.find(mname).unwrap_or_else(|| fail!("Attempted to use an unknown material: " + *mname)).clone();
 
         let pos       = props.pos.as_ref().unwrap().n1();
         let mut angle = props.angle.as_ref().unwrap().n1();
@@ -420,15 +426,15 @@ fn register_geometry(props:  Properties,
 
     match props.geom.unwrap().n1() {
         Ball(r) =>
-            nodes.push(@SceneNode::new(material, refl, transform, @Ball::new(r), normals)),
+            nodes.push(Arc::new(SceneNode::new(material, refl, transform, ~Ball::new(r), normals))),
         Box(rs) =>
-            nodes.push(@SceneNode::new(material, refl, transform, @Box::new_with_margin(rs, 0.0), normals)),
+            nodes.push(Arc::new(SceneNode::new(material, refl, transform, ~Box::new_with_margin(rs, 0.0), normals))),
         Cylinder(h, r) =>
-            nodes.push(@SceneNode::new(material, refl, transform, @Cylinder::new_with_margin(h, r, 0.0), normals)),
+            nodes.push(Arc::new(SceneNode::new(material, refl, transform, ~Cylinder::new_with_margin(h, r, 0.0), normals))),
         Cone(h, r) =>
-            nodes.push(@SceneNode::new(material, refl, transform, @Cone::new_with_margin(h, r, 0.0), normals)),
+            nodes.push(Arc::new(SceneNode::new(material, refl, transform, ~Cone::new_with_margin(h, r, 0.0), normals))),
         Plane(n) =>
-            nodes.push(@SceneNode::new(material, refl, transform, @Plane::new(n), normals)),
+            nodes.push(Arc::new(SceneNode::new(material, refl, transform, ~Plane::new(n), normals))),
         Obj(objpath, mtlpath) => {
             let mtlpath = Path::new(mtlpath);
             let os      = obj::parse_file(&Path::new(objpath), &mtlpath, "").unwrap();
@@ -449,7 +455,7 @@ fn register_geometry(props:  Properties,
                     let faces = o.mut_faces().unwrap();
                     let faces = Arc::new(faces.flat_map(|a| ~[a.x as uint, a.y as uint, a.z as uint]));
 
-                    let mesh = @Mesh::new_with_margin(coords.clone(), faces, Some(uvs.clone()), Some(ns.clone()), 0.0);
+                    let mesh = ~Mesh::new_with_margin(coords.clone(), faces, Some(uvs.clone()), Some(ns.clone()), 0.0);
                     match mat {
                         Some(m) => {
                             let t = match m.diffuse_texture {
@@ -465,17 +471,17 @@ fn register_geometry(props:  Properties,
                                 }
                             };
 
-                            let color = @PhongMaterial::new(
+                            let color = Arc::new(~PhongMaterial::new(
                                 m.ambiant,
                                 m.diffuse,
                                 m.specular,
                                 t,
                                 m.shininess
-                                ) as @Material;
+                                ) as ~Material:Send+Freeze);
 
-                            nodes.push(@SceneNode::new(if special { material } else { color }, refl, transform, mesh, None));
+                            nodes.push(Arc::new(SceneNode::new(if special { material.clone() } else { color }, refl, transform, mesh, None)));
                         },
-                        None => nodes.push(@SceneNode::new(material, refl, transform, mesh, None))
+                        None => nodes.push(Arc::new(SceneNode::new(material.clone(), refl, transform, mesh, None)))
                     }
                 }
             }

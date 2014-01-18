@@ -6,7 +6,7 @@ camera
     eye 0 0 0
     at  0 0 1
     fovy 45.0
-    aa 4 0.1
+    aa 10 1.0
 
 geometry
     box 0.5 0.5 0.5

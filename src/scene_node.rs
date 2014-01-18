@@ -1,3 +1,4 @@
+use extra::arc::Arc;
 use nalgebra::na::Transform;
 use ncollide::ray::{RayCast, Ray};
 use ncollide::bounding_volume::{HasAABB, AABB};
@@ -11,27 +12,26 @@ use nalgebra::na;
 
 pub struct SceneNode {
     refl:      ReflectiveMaterial,
-    material:  @Material,
+    material:  Arc<~Material:Freeze+Send>,
     transform: M,
-    geometry:  @RayCast,
+    geometry:  ~RayCast:Freeze+Send,
     aabb:      AABB,
     nmap:      Option<Texture2d>
-
 }
 
 impl SceneNode {
-    pub fn new<G: 'static + RayCast + HasAABB>(
-               material:  @Material,
+    pub fn new<G: 'static + Send + Freeze + RayCast + HasAABB>(
+               material:  Arc<~Material:Freeze+Send>,
                refl:      ReflectiveMaterial,
                transform: M,
-               geometry:  @G,
+               geometry:  ~G,
                nmap:      Option<Texture2d>)
                -> SceneNode {
         SceneNode {
             refl:      refl, 
             material:  material,
-            geometry:  geometry as @RayCast,
             aabb:      geometry.aabb(&transform),
+            geometry:  geometry as ~RayCast:Freeze+Send,
             transform: transform,
             nmap:      nmap
         }

@@ -3,6 +3,7 @@
 #[warn(non_camel_case_types)];
 #[feature(managed_boxes)];
 
+extern mod native;
 extern mod extra;
 extern mod nalgebra;
 extern mod ncollide = "ncollide3df64";

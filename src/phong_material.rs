@@ -68,9 +68,6 @@ impl Material for PhongMaterial {
                 if !scene.intersects_ray(&Ray::new(point + ldir * na::cast::<f32, N>(0.001), ldir.clone()), dist) {
                     let dot_ldir_norm = na::dot(&ldir, normal);
 
-                    if *normal != *normal {
-                        println!("{:?}", normal)
-                    }
                     // diffuse
                     let dcoeff: f32   = NumCast::from(dot_ldir_norm.clone()).expect("[0] Conversion failed.");
                     let dcoeff        = dcoeff.max(&0.0);

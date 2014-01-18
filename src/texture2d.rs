@@ -1,6 +1,6 @@
-use std::rc::Rc;
 use std::hashmap::HashMap;
 use std::local_data;
+use extra::arc::Arc;
 use stb_image::image::ImageU8;
 use stb_image::image;
 use nalgebra::na::{Vec3, Vec2};
@@ -27,7 +27,7 @@ impl ImageData {
 local_data_key!(KEY_TEXTURE_MANAGER: TexturesManager)
 
 struct TexturesManager {
-    loaded: HashMap<~str, Rc<ImageData>>
+    loaded: HashMap<~str, Arc<ImageData>>
 }
 
 impl TexturesManager {
@@ -59,13 +59,13 @@ pub enum Overflow {
 }
 
 pub struct Texture2d {
-    data:     Rc<ImageData>,
+    data:     Arc<ImageData>,
     interpol: Interpolation,
     overflow: Overflow
 }
 
 impl Texture2d {
-    pub fn new(data:          Rc<ImageData>,
+    pub fn new(data:          Arc<ImageData>,
                interpolation: Interpolation,
                overflow:      Overflow)
                -> Texture2d {
@@ -103,7 +103,7 @@ impl Texture2d {
                                     data.push(Vec3::new(g, g, g));
                                 }
 
-                                Some(Rc::new(ImageData::new(data,
+                                Some(Arc::new(ImageData::new(data,
                                 Vec2::new(image.width as uint, image.height as uint))))
                             }
 
@@ -116,7 +116,7 @@ impl Texture2d {
                                     data.push(Vec3::new(r, g, b));
                                 }
 
-                                Some(Rc::new(ImageData::new(data,
+                                Some(Arc::new(ImageData::new(data,
                                 Vec2::new(image.width as uint, image.height as uint))))
                             }
                             else if image.depth == 4 {
@@ -128,7 +128,7 @@ impl Texture2d {
                                     data.push(Vec3::new(r, g, b));
                                 }
 
-                                Some(Rc::new(ImageData::new(data,
+                                Some(Arc::new(ImageData::new(data,
                                 Vec2::new(image.width as uint, image.height as uint))))
                             }
                             else {
@@ -152,7 +152,7 @@ impl Texture2d {
     }
 
     pub fn at<'a>(&'a self, x: uint, y: uint) -> &'a Vec3<f32> {
-        let res = &'a self.data.borrow().pixels[y * self.data.borrow().dims.x + x];
+        let res = &'a self.data.get().pixels[y * self.data.get().dims.x + x];
 
         res
     }
@@ -176,8 +176,8 @@ impl Texture2d {
             }
         }
 
-        ux = ux * ((self.data.borrow().dims.x - 1) as f32);
-        uy = uy * ((self.data.borrow().dims.y - 1) as f32);
+        ux = ux * ((self.data.get().dims.x - 1) as f32);
+        uy = uy * ((self.data.get().dims.y - 1) as f32);
 
         match self.interpol {
             Nearest => {

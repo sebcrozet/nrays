@@ -3,10 +3,12 @@
 #[warn(non_camel_case_types)];
 #[feature(managed_boxes)];
 
+extern mod extra;
 extern mod nalgebra;
 extern mod ncollide = "ncollide4df64";
 extern mod nrays    = "nrays4d";
 
+use extra::arc::Arc;
 use std::io::fs::File;
 use nalgebra::na::{Iso4, Vec3, Vec4};
 use nalgebra::na;
@@ -46,20 +48,20 @@ fn main() {
     }
 
     let refl = ReflectiveMaterial::new(0.4, 0.2);
-    let blue = @PhongMaterial::new(
+    let blue = Arc::new(~PhongMaterial::new(
         Vec3::new(0.1, 0.1, 0.1),
         Vec3::new(1.0, 1.0, 1.0),
         Vec3::new(1.0, 1.0, 1.0),
         None,
         100.0
-    ) as @Material;
+    ) as ~Material:Freeze+Send);
 
     let transform: Iso4<f64> = na::one();
 
-    let box_shape = @Box::new_with_margin(Vec4::new(0.25, 0.25, 0.25, 0.00000001), 0.000000001);
-    let ball      = @Ball::new(0.25);
-    let cone      = @Box::new_with_margin(Vec4::new(0.25, 0.25, 0.25, 0.00000001), 0.00000001); // Cone::new_with_margin(0.25, 0.25, 0.0);
-    let cylinder  = @Cylinder::new_with_margin(0.25, 0.25, 0.0);
+    let box_shape = ~Box::new_with_margin(Vec4::new(0.25, 0.25, 0.25, 0.00000001), 0.000000001);
+    let ball      = ~Ball::new(0.25);
+    let cone      = ~Box::new_with_margin(Vec4::new(0.25, 0.25, 0.25, 0.00000001), 0.00000001); // Cone::new_with_margin(0.25, 0.25, 0.0);
+    let cylinder  = ~Cylinder::new_with_margin(0.25, 0.25, 0.0);
 
     let pos  = na::append_translation(&transform, &Vec4::new(0.0, 0.0, 0.0,    4.0));
     let pos2 = na::append_translation(&transform, &Vec4::new(0.75, 0.75, 0.0,  4.0));
@@ -67,11 +69,10 @@ fn main() {
     let pos4 = na::append_translation(&transform, &Vec4::new(0.0, 0.75, -0.75, 4.0));
 
     let mut nodes = ~[];
-    nodes.push(@SceneNode::new(blue, refl, pos,  ball, None));
-    nodes.push(@SceneNode::new(blue, refl, pos2, box_shape, None));
-    nodes.push(@SceneNode::new(blue, refl, pos3, cone, None));
-    nodes.push(@SceneNode::new(blue, refl, pos4, cylinder, None));
-    // nodes.push(@SceneNode::new(~[white],  na::append_translation(&transform, &Vec4::new(0.0f64, 0.0f64, 0.0, 4.0)), plane));
+    nodes.push(Arc::new(SceneNode::new(blue.clone(), refl, pos,  ball, None)));
+    nodes.push(Arc::new(SceneNode::new(blue.clone(), refl, pos2, box_shape, None)));
+    nodes.push(Arc::new(SceneNode::new(blue.clone(), refl, pos3, cone, None)));
+    nodes.push(Arc::new(SceneNode::new(blue.clone(), refl, pos4, cylinder, None)));
 
     let scene = Scene::new(nodes, lights);
     let pixels = scene.render(&resolution, |pt| {
