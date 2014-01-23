@@ -58,7 +58,7 @@ fn main() {
 
     println!("Loading the scene.");
     let s     = File::open(&path).expect("Cannot open the file: " + path.as_str().unwrap()).read_to_end();
-    let descr = str::from_utf8_owned(s);
+    let descr = str::from_utf8_owned(s).unwrap();
 
     let (lights, nodes, cameras) = parse(descr);
     let nnodes  = nodes.len();

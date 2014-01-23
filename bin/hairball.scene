@@ -1,9 +1,10 @@
 camera
     output out.png
-    resolution 1024 1024
+    resolution 4096 4096
     eye  0.0 0.2 -5.0
     at   0.0 0.2 0.0
     fovy 25.0
+    aa 10 1.0
 
 light
     pos   0.0 0.2 -5.0
