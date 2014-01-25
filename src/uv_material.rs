@@ -13,15 +13,14 @@ impl Material for UVMaterial {
                _:  &RayWithEnergy,
                _:  &Vec3<N>,
                _:  &Vec3<N>,
-               uv: &Option<(N, N, N)>,
+               uv: &Option<Vec3<N>>,
                _:  &Scene)
                -> Vec3<f32> {
         match *uv {
             Some(ref uvs) => {
-                let (ux, uy, uz) = uvs.clone();
-                let ux = NumCast::from(ux).expect("Conversion failed.");
-                let uy = NumCast::from(uy).expect("Conversion failed.");
-                let uz = NumCast::from(uz).expect("Conversion failed.");
+                let ux = NumCast::from(uvs.x).expect("Conversion failed.");
+                let uy = NumCast::from(uvs.y).expect("Conversion failed.");
+                let uz = NumCast::from(uvs.z).expect("Conversion failed.");
 
                 Vec3::new(ux, uy, uz)
             },

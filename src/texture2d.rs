@@ -157,10 +157,9 @@ impl Texture2d {
         res
     }
 
-    pub fn sample(&self, coords: &(N, N, N)) -> Vec3<f32> {
-        let (ux, uy, _) = coords.clone();
-        let mut ux: f32 = NumCast::from(ux).expect("Conversion of sampling coordinates failed.");
-        let mut uy: f32 = NumCast::from(uy).expect("Conversion of sampling coordinates failed.");
+    pub fn sample(&self, coords: &Vec3<N>) -> Vec3<f32> {
+        let mut ux: f32 = NumCast::from(coords.x).expect("Conversion of sampling coordinates failed.");
+        let mut uy: f32 = NumCast::from(coords.y).expect("Conversion of sampling coordinates failed.");
 
         match self.overflow {
             ClampToEdges => {

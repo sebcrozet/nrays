@@ -11,8 +11,8 @@ light
     nsample 1
 
 geometry
-    obj      media/teapot/teapot.obj media/teapote
+    obj      media/teapot/teapot.obj media/teapot
     pos      0.0 0.0 0.0
     angle    0.0 0.0 0.0
-    material normals
+    material default
     refl     0.0 0.0

@@ -39,7 +39,7 @@ impl Material for PhongMaterial {
                ray:    &RayWithEnergy,
                point:  &V,
                normal: &V,
-               uvs:    &Option<(N, N, N)>,
+               uvs:    &Option<Vec3<N>>,
                scene:  &Scene)
                -> Vec3<f32> {
         // initialize with the ambiant color

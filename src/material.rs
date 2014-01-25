@@ -8,6 +8,7 @@ pub trait Material {
                ray:    &RayWithEnergy,
                pt:     &V,
                normal: &V,
-               uv:     &Option<(N, N, N)>,
-               scene:  &Scene) -> Vec3<f32>;
+               uv:     &Option<Vec3<N>>,
+               scene:  &Scene)
+               -> Vec3<f32>;
 }

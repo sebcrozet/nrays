@@ -12,7 +12,7 @@ impl Material for NormalMaterial {
                _:      &RayWithEnergy,
                _:      &Vec3<N>,
                normal: &Vec3<N>,
-               _:      &Option<(N, N, N)>,
+               _:      &Option<Vec3<N>>,
                _:      &Scene)
                -> Vec3<f32> {
         Vec3::new((1.0f32 + NumCast::from(normal.x.clone()).expect("Conversion failed.")) / 2.0,

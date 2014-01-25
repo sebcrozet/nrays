@@ -6,7 +6,7 @@ use nalgebra::na;
 use ncollide::bounding_volume::{AABB, HasAABB};
 use ncollide::partitioning::BVT;
 // use ncollide::partitioning::bvt_visitor::RayInterferencesCollector;
-use ncollide::ray::{Ray, RayCast};
+use ncollide::ray::{Ray, RayCast, RayIntersection};
 use ncollide::math::{N, V};
 use material::Material;
 use ray_with_energy::RayWithEnergy;
@@ -237,15 +237,25 @@ impl Scene {
     }
 
     pub fn trace(&self, ray: &RayWithEnergy) -> Vec3<f32> {
-        let cast = self.world.cast_ray(&ray.ray, &|b, r| { b.get().cast(r).map(|(t, n, u)| (t, (t, n, u))) });
+        let cast = self.world.cast_ray(&ray.ray, &|b, r| { b.get().cast(r).map(|inter| (inter.toi, inter)) });
 
         match cast {
             None     => Vec3::new(0.0, 0.0, 0.0),
-            Some((_, toi, sn)) => {
-                let inter = ray.ray.orig + ray.ray.dir * *toi.n0_ref();
+            Some((_, inter, sn)) => {
+                let pt = ray.ray.orig + ray.ray.dir * inter.toi;
 
-                let obj  = sn.get().material.get().compute(ray, &inter, toi.n1_ref(), toi.n2_ref(), self);
-                let refl = sn.get().refl.compute(ray, &inter, toi.n1_ref(), toi.n2_ref(), self);
+                #[cfg(dim3)]
+                fn uvs(i: &RayIntersection) -> Option<Vec3<N>> {
+                    i.uvs.clone()
+                }
+
+                #[cfg(not(dim3))]
+                fn uvs(i: &RayIntersection) -> Option<Vec3<N>> {
+                    None
+                }
+
+                let obj  = sn.get().material.get().compute(ray, &pt, &inter.normal, &uvs(&inter), self);
+                let refl = sn.get().refl.compute(ray, &pt, &inter.normal, &uvs(&inter), self);
 
                 obj * (1.0 - sn.get().refl.mix)+ refl * sn.get().refl.mix
             }

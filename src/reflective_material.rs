@@ -26,7 +26,7 @@ impl Material for ReflectiveMaterial {
                ray:    &RayWithEnergy,
                pt:     &V,
                normal: &V,
-               _:      &Option<(N, N, N)>,
+               _:      &Option<Vec3<N>>,
                scene:  &Scene)
                -> Vec3<f32> {
         if !self.mix.is_zero() && ray.energy > 0.1 {

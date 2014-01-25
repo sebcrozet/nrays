@@ -1,8 +1,8 @@
 use extra::arc::Arc;
 use nalgebra::na::Transform;
-use ncollide::ray::{RayCast, Ray};
+use ncollide::ray::{RayCast, Ray, RayIntersection};
 use ncollide::bounding_volume::{HasAABB, AABB};
-use ncollide::math::{N, V, M};
+use ncollide::math::M;
 use material::Material;
 use reflective_material::ReflectiveMaterial;
 use texture2d::Texture2d;
@@ -41,7 +41,7 @@ impl SceneNode {
 
 impl SceneNode {
     #[cfg(dim3)]
-    pub fn cast(&self, r: &Ray) -> Option<(N, V, Option<(N, N, N)>)> {
+    pub fn cast(&self, r: &Ray) -> Option<RayIntersection> {
         let res = self.geometry.toi_and_normal_and_uv_with_transform_and_ray(&self.transform, r);
 
         if res.is_none() {
@@ -51,19 +51,18 @@ impl SceneNode {
         match self.nmap {
             None           => res,
             Some(ref nmap) => {
-                let (t, n, uvs) = res.unwrap();
+                let mut inter = res.unwrap();
 
-                match uvs {
-                    None          => Some((t, n, None)),
+                match inter.uvs {
+                    None          => Some(inter),
                     Some(ref uvs) => {
-                        let mut n = na::zero::<V>();
-                        let cn    = (na::normalize(&nmap.sample(uvs)) - 0.5f32) * 2.0f32;
+                        let cn = (na::normalize(&nmap.sample(uvs)) - 0.5f32) * 2.0f32;
 
-                        n.x = na::cast(cn.x); 
-                        n.y = na::cast(cn.y); 
-                        n.z = na::cast(cn.z); 
+                        inter.normal.x = na::cast(cn.x); 
+                        inter.normal.y = na::cast(cn.y); 
+                        inter.normal.z = na::cast(cn.z); 
 
-                        Some((t, n, Some(uvs.clone())))
+                        Some(inter)
                     }
                 }
             }
@@ -71,8 +70,7 @@ impl SceneNode {
     }
 
     #[cfg(dim4)]
-    pub fn cast(&self, r: &Ray) -> Option<(N, V, Option<(N, N, N)>)> {
-        self.geometry.toi_and_normal_with_transform_and_ray(&self.transform, r).map(|(n, v)|
-            (n, v, None))
+    pub fn cast(&self, r: &Ray) -> Option<RayIntersection> {
+        self.geometry.toi_and_normal_with_transform_and_ray(&self.transform, r)
     }
 }
