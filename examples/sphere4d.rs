@@ -17,7 +17,6 @@ use ncollide::geom::{Ball, Box, Cone, Cylinder};
 use nrays::scene_node::SceneNode;
 use nrays::material::Material;
 use nrays::phong_material::PhongMaterial;
-use nrays::reflective_material::ReflectiveMaterial;
 use nrays::scene::Scene;
 use nrays::light::Light;
 
@@ -47,7 +46,6 @@ fn main() {
                                */
     }
 
-    let refl = ReflectiveMaterial::new(0.4, 0.2);
     let blue = Arc::new(~PhongMaterial::new(
         Vec3::new(0.1, 0.1, 0.1),
         Vec3::new(1.0, 1.0, 1.0),
@@ -69,10 +67,10 @@ fn main() {
     let pos4 = na::append_translation(&transform, &Vec4::new(0.0, 0.75, -0.75, 4.0));
 
     let mut nodes = ~[];
-    nodes.push(Arc::new(SceneNode::new(blue.clone(), refl, pos,  ball, None)));
-    nodes.push(Arc::new(SceneNode::new(blue.clone(), refl, pos2, box_shape, None)));
-    nodes.push(Arc::new(SceneNode::new(blue.clone(), refl, pos3, cone, None)));
-    nodes.push(Arc::new(SceneNode::new(blue.clone(), refl, pos4, cylinder, None)));
+    nodes.push(Arc::new(SceneNode::new(blue.clone(), 0.4, 0.2, 1.0, 1.0, pos,  ball, None, true)));
+    nodes.push(Arc::new(SceneNode::new(blue.clone(), 0.4, 0.2, 1.0, 1.0, pos2, box_shape, None, true)));
+    nodes.push(Arc::new(SceneNode::new(blue.clone(), 0.4, 0.2, 1.0, 1.0, pos3, cone, None, true)));
+    nodes.push(Arc::new(SceneNode::new(blue.clone(), 0.4, 0.2, 1.0, 1.0, pos4, cylinder, None, true)));
 
     let scene = Scene::new(nodes, lights);
     let pixels = scene.render(&resolution, |pt| {

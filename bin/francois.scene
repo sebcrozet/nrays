@@ -2,11 +2,11 @@ mtllib francois.mtl
 
 camera
     output out.png
-    resolution 640 480
+    resolution 1024 1024
     eye 0 0 0
     at  0 0 1
     fovy 45.0
-    aa 10 1.0
+    aa 5 1.0
 
 geometry
     box 0.5 0.5 0.5
@@ -14,19 +14,28 @@ geometry
     angle 0 0 0
     material A
     refl 0.0 0.0
+    refr 0.3 1.5
 
 geometry
-    ball 0.75
-    pos -1 0 7
+    box 0.5 0.5 0.5
+    pos -1 0.01 7
     angle 0 0 0
-    material B
+    material spiral
     refl 0.0 0.0
+    refr 1.0 1.5
 
 geometry
     ball 0.5
     pos 0 1 7
     angle 0 0 0
     material C
+    refl 1.0 0.2
+
+geometry
+    plane -1 0 0
+    pos 3 0 0
+    material E
+    angle 0 0 0
     refl 0.0 0.0
 
 geometry
@@ -34,13 +43,6 @@ geometry
     pos 0 -0.75 0
     angle 0 0 0
     material D
-    refl 0.0 0.0
-
-geometry
-    plane -1 0 0
-    pos 3 0 0
-    material E
-    angle 0 0 0
     refl 0.0 0.0
 
 geometry

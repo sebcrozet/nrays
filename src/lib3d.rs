@@ -18,7 +18,6 @@ pub mod material;
 pub mod ray_with_energy;
 
 pub mod phong_material;
-pub mod reflective_material;
 pub mod texture2d;
 
 pub mod normal_material;

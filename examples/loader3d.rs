@@ -20,15 +20,15 @@ use std::str;
 use std::str::Words;
 use std::hashmap::HashMap;
 use extra::arc::Arc;
-use nalgebra::na::{Vec2, Vec3, Iso3};
+use nalgebra::na::{Vec2, Vec3, Vec4, Iso3};
 use nalgebra::na;
 use ncollide::geom::{Plane, Ball, Cone, Cylinder, Box, Mesh};
 use nrays::scene_node::SceneNode;
 use nrays::material::Material;
 use nrays::normal_material::NormalMaterial;
 use nrays::phong_material::PhongMaterial;
-use nrays::texture2d::{Texture2d, Bilinear, Wrap};
-use nrays::reflective_material::ReflectiveMaterial;
+use nrays::texture2d::{ImageData, Texture2d, Bilinear, Wrap};
+use nrays::texture2d;
 use nrays::uv_material::UVMaterial;
 use nrays::scene::Scene;
 use nrays::scene;
@@ -154,9 +154,11 @@ struct Properties {
     resolution: Option<(uint, Vec2<f64>)>,
     output:     Option<(uint, ~str)>,
     refl:       Option<(uint, Vec2<f64>)>,
+    refr:       Option<(uint, Vec2<f64>)>,
     aa:         Option<(uint, Vec2<f64>)>,
     radius:     Option<(uint, f64)>,
     nsample:    Option<(uint, f64)>,
+    solid:      bool
 }
 
 impl Properties {
@@ -174,9 +176,11 @@ impl Properties {
             resolution: None,
             output:     None,
             refl:       None,
+            refr:       None,
             aa:         None,
             radius:     None,
             nsample:    None,
+            solid:      false
         }
     }
 }
@@ -246,6 +250,7 @@ fn parse(string: &str) -> (~[Light], ~[Arc<SceneNode>], ~[Camera]) {
                         &"output"     => props.output     = Some((l, parse_name(l, words))),
                         &"resolution" => props.resolution = Some((l, parse_duet(l, words))),
                         &"refl"       => props.refl       = Some((l, parse_duet(l, words))),
+                        &"refr"       => props.refr       = Some((l, parse_duet(l, words))),
                         &"aa"         => props.aa         = Some((l, parse_duet(l, words))),
                         &"radius"     => props.radius     = Some((l, parse_number(l, words))),
                         &"nsample"    => props.nsample    = Some((l, parse_number(l, words))),
@@ -256,6 +261,7 @@ fn parse(string: &str) -> (~[Light], ~[Arc<SceneNode>], ~[Camera]) {
                         &"cylinder"   => props.geom = Some((l, parse_cylinder(l, words))),
                         &"cone"       => props.geom = Some((l, parse_cone(l, words))),
                         &"obj"        => props.geom = Some((l, parse_obj(l, words))),
+                        &"solid"      => props.solid = true,
                         _             => {
                             println!("Warning: unknown line {} ignored: `{:s}'", l, line);
                         }
@@ -307,6 +313,7 @@ fn register_nothing(props: Properties) {
     warn_if_some(&props.output);
     warn_if_some(&props.resolution);
     warn_if_some(&props.refl);
+    warn_if_some(&props.refr);
     warn_if_some(&props.aa);
     warn_if_some(&props.radius);
     warn_if_some(&props.nsample);
@@ -319,6 +326,7 @@ fn register_camera(props: Properties, cameras: &mut ~[Camera]) {
     warn_if_some(&props.material);
     warn_if_some(&props.color);
     warn_if_some(&props.refl);
+    warn_if_some(&props.refr);
     warn_if_some(&props.radius);
     warn_if_some(&props.nsample);
 
@@ -351,6 +359,7 @@ fn register_light(props: Properties, lights: &mut ~[Light]) {
     warn_if_some(&props.output);
     warn_if_some(&props.resolution);
     warn_if_some(&props.refl);
+    warn_if_some(&props.refr);
     warn_if_some(&props.aa);
 
     fail_if_none(&props.pos, props.superbloc, "pos <x> <y> <z>");
@@ -365,16 +374,54 @@ fn register_light(props: Properties, lights: &mut ~[Light]) {
     lights.push(light);
 }
 
+fn merge_texture_and_alpha(t: &Option<Texture2d>, a: &Option<Texture2d>) -> Option<Arc<ImageData>> {
+    if t.is_none() {
+        a.as_ref().map(|a| a.data.clone())
+    }
+    else if a.is_some() {
+        let mut new_data = ~[];
+
+        let dimt = {
+            let bt = t.as_ref().unwrap();
+            let ba = a.as_ref().unwrap();
+            let it = bt.data.get().pixels.iter();
+            let ia = ba.data.get().pixels.iter();
+            let dimt = bt.data.get().dims.clone();
+            let dima = ba.data.get().dims.clone();
+
+            assert!(dimt == dima);
+
+            for (px, alpha) in it.zip(ia) {
+                new_data.push(Vec4::new(px.x, px.y, px.z, alpha.w));
+            }
+
+            dimt
+        };
+
+        Some(Arc::new(ImageData::new(new_data, dimt)))
+    }
+    else {
+        t.as_ref().map(|t| t.data.clone())
+    }
+}
+
 fn register_mtllib(path: &str, mtllib: &mut HashMap<~str, Arc<~Material:Send+Freeze>>) {
     let materials = mtl::parse_file(&Path::new(path)).expect("Failed to parse the mtl file: " + path);
 
     for m in materials.move_iter() {
-        let t = m.diffuse_texture.as_ref().map(|t| Texture2d::from_png(&Path::new(t.as_slice()), Bilinear, Wrap).expect("Image not found."));
+        let t = m.diffuse_texture.as_ref().map(|t| Texture2d::from_png(&Path::new(t.as_slice()), false, Bilinear, Wrap).expect("Image not found."));
+
+        let a = m.opacity_map.as_ref().map(|t| Texture2d::from_png(&Path::new(t.as_slice()), true, Bilinear, Wrap).expect("Image not found."));
+
+        let tex     = merge_texture_and_alpha(&t, &a);
+        let texture = tex.map(|tex| Texture2d::new(tex, Bilinear, Wrap));
+
+
         let color = ~PhongMaterial::new(
             m.ambiant,
             m.diffuse,
             m.specular,
-            t,
+            texture,
             m.shininess
             ) as ~Material:Send+Freeze;
 
@@ -396,17 +443,22 @@ fn register_geometry(props:  Properties,
     fail_if_none(&props.angle, props.superbloc, "color <r> <g> <b>");
     fail_if_none(&props.geom, props.superbloc, "<geom_type> <geom parameters>]");
     fail_if_none(&props.material, props.superbloc, "material <material_name>");
-    fail_if_none(&props.refl, props.superbloc, "refl <mix> <atenuation>");
+    fail_if_none(&props.refl, props.superbloc, "refl <alpha> <atenuation>");
 
 
     let special;
     let material;
-    let refl;
     let transform;
     let normals;
+    let solid;
+    let refl_m;
+    let refl_a;
+    let alpha;
+    let refr_c;
 
     {
-        let mname     = props.material.as_ref().unwrap().n1_ref();
+        solid     = props.solid;
+        let mname = props.material.as_ref().unwrap().n1_ref();
         special   = mname.as_slice() == "uvs" || mname.as_slice() == "normals";
         material  = mtllib.find(mname).unwrap_or_else(|| fail!("Attempted to use an unknown material: " + *mname)).clone();
 
@@ -420,21 +472,26 @@ fn register_geometry(props:  Properties,
         let refl_param = props.refl.as_ref().unwrap().n1();
         transform = Iso3::new(pos, angle);
         normals   = None;
-        refl = ReflectiveMaterial::new(refl_param.x as f32, refl_param.y as f32);
+        refl_m = refl_param.x as f32;
+        refl_a = refl_param.y as f32;
+
+        let refr_param = props.refr.unwrap_or((props.superbloc, Vec2::new(1.0, 1.0))).n1();
+        alpha  = refr_param.x as f32;
+        refr_c = refr_param.y as f64;
     }
 
 
     match props.geom.unwrap().n1() {
         Ball(r) =>
-            nodes.push(Arc::new(SceneNode::new(material, refl, transform, ~Ball::new(r), normals))),
+            nodes.push(Arc::new(SceneNode::new(material, refl_m, refl_a, alpha, refr_c, transform, ~Ball::new(r), normals, solid))),
         Box(rs) =>
-            nodes.push(Arc::new(SceneNode::new(material, refl, transform, ~Box::new_with_margin(rs, 0.0), normals))),
+            nodes.push(Arc::new(SceneNode::new(material, refl_m, refl_a, alpha, refr_c, transform, ~Box::new_with_margin(rs, 0.0), normals, solid))),
         Cylinder(h, r) =>
-            nodes.push(Arc::new(SceneNode::new(material, refl, transform, ~Cylinder::new_with_margin(h, r, 0.0), normals))),
+            nodes.push(Arc::new(SceneNode::new(material, refl_m, refl_a, alpha, refr_c, transform, ~Cylinder::new_with_margin(h, r, 0.0), normals, solid))),
         Cone(h, r) =>
-            nodes.push(Arc::new(SceneNode::new(material, refl, transform, ~Cone::new_with_margin(h, r, 0.0), normals))),
+            nodes.push(Arc::new(SceneNode::new(material, refl_m, refl_a, alpha, refr_c, transform, ~Cone::new_with_margin(h, r, 0.0), normals, solid))),
         Plane(n) =>
-            nodes.push(Arc::new(SceneNode::new(material, refl, transform, ~Plane::new(n), normals))),
+            nodes.push(Arc::new(SceneNode::new(material, refl_m, refl_a, alpha, refr_c, transform, ~Plane::new(n), normals, solid))),
         Obj(objpath, mtlpath) => {
             let mtlpath = Path::new(mtlpath);
             let os      = obj::parse_file(&Path::new(objpath), &mtlpath, "").unwrap();
@@ -458,30 +515,72 @@ fn register_geometry(props:  Properties,
                     let mesh = ~Mesh::new_with_margin(coords.clone(), faces, Some(uvs.clone()), Some(ns.clone()), 0.0);
                     match mat {
                         Some(m) => {
+                            let mut key = ~"";
+
                             let t = match m.diffuse_texture {
                                 None        => None,
                                 Some(ref t) => {
                                     let mut p = mtlpath.clone();
                                     p.push(t.as_slice());
+
+                                    key = key + p.as_str().unwrap();
+
                                     if !p.exists() {
                                         fail!(format!("Image not found: {}", p.as_str()));
                                     }
 
-                                    Texture2d::from_png(&p, Bilinear, Wrap)
+                                    Texture2d::from_png(&p, false, Bilinear, Wrap)
                                 }
                             };
+
+                            let a = match m.opacity_map {
+                                None        => None,
+                                Some(ref a) => {
+                                    let mut p = mtlpath.clone();
+                                    p.push(a.as_slice());
+
+                                    key = key + p.as_str().unwrap();
+
+                                    if !p.exists() {
+                                        fail!(format!("Image not found: {}", p.as_str()));
+                                    }
+
+                                    Texture2d::from_png(&p, true, Bilinear, Wrap)
+                                }
+                            };
+
+                            let texture;
+
+                            if t.is_some() && a.is_some() {
+                                let tex = texture2d::get_texture_manager(|tm| {
+                                    let found = match tm.loaded_opaque.find(&key) {
+                                        None       => merge_texture_and_alpha(&t, &a).unwrap(),
+                                        Some(data) => data.clone()
+                                    };
+
+                                    tm.loaded_opaque.insert(key.clone(), found.clone());
+
+                                    found
+                                });
+
+                                texture = Some(tex);
+                            }
+                            else {
+                                texture = merge_texture_and_alpha(&t, &a);
+                            }
+
 
                             let color = Arc::new(~PhongMaterial::new(
                                 m.ambiant,
                                 m.diffuse,
                                 m.specular,
-                                t,
+                                texture.map(|t| Texture2d::new(t, Bilinear, Wrap)),
                                 m.shininess
                                 ) as ~Material:Send+Freeze);
 
-                            nodes.push(Arc::new(SceneNode::new(if special { material.clone() } else { color }, refl, transform, mesh, None)));
+                            nodes.push(Arc::new(SceneNode::new(if special { material.clone() } else { color }, refl_m, refl_a, alpha, refr_c, transform, mesh, None, solid)));
                         },
-                        None => nodes.push(Arc::new(SceneNode::new(material.clone(), refl, transform, mesh, None)))
+                        None => nodes.push(Arc::new(SceneNode::new(material.clone(), refl_m, refl_a, alpha, refr_c, transform, mesh, None, solid)))
                     }
                 }
             }

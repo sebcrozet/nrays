@@ -4,18 +4,17 @@ camera
     eye  0.0 0.25 -1.05
     at   0.0 0.25 0.0
     fovy 45.0
-    aa 10 1.0
 
 light
     pos   1.0 3.0 -1.05
     color 0.5 0.5 0.5
-    nsample 50
+    nsample 10
     radius  0.25
 
 light
     pos   -1.0 3.0 -1.05
     color 0.5 0.5 0.5
-    nsample 50
+    nsample 10
     radius  0.1
 
 geometry

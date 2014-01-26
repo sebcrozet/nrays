@@ -1,3 +1,5 @@
+mtllib basic_materials.mtl
+
 camera
     output out.png
     resolution 1024 1024

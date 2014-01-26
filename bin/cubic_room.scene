@@ -1,0 +1,29 @@
+mtllib francois.mtl
+
+camera
+    output out.png
+    resolution 4096 4096
+    eye 0 0 0
+    at  0 0 1
+    fovy 45.0
+
+geometry
+    ball 0.5
+    pos 0 0 7
+    angle 0 0 0
+    material dots
+    refl 0.0 0.0
+
+
+geometry
+    box 3 3 10
+    pos 0 0 0
+    angle 0 0 0
+    material default
+    refl 0.0 0.0
+
+light
+    pos 0 0 7
+    color 1.0 1.0 1.0
+    radius  0.01
+    nsample 50
