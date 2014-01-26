@@ -2,7 +2,7 @@ mtllib basic_materials.mtl
 
 camera
     output out.png
-    resolution 1024 1024
+    resolution 4096 4096
     eye  0.0 5.0 -20.0
     at   0.0 0.0 0.0
     fovy 45.0
@@ -13,19 +13,13 @@ light
     radius 0.1
     nsample 10
 
-light
-    pos   0.0 10.0 0.0
-    color 1.0 1.0 1.0
-    radius 0.1
-    nsample 10
-
 geometry
     ball     1.0
     pos      -2.1 0.0 0.0
     angle    0.0 0.0 0.0
     material default
     refl     0.0 0.0
-    refr     0.5 1.0
+    refr     0.2 1.5
 
 geometry
     box      1.0 1.0 1.0
@@ -33,7 +27,7 @@ geometry
     angle    0.0 0.0 0.0
     material red
     refl     0.0 0.0
-    refr     0.5 1.0
+    refr     0.2 1.5
 
 geometry
     cone     1.0 1.0
@@ -41,7 +35,7 @@ geometry
     angle    0.0 0.0 0.0
     material blue
     refl     0.0 0.0
-    refr     0.5 1.0
+    refr     0.2 1.5
 
 geometry
     cylinder 1.0 1.0
@@ -49,7 +43,7 @@ geometry
     angle    0.0 0.0 0.0
     material green
     refl     0.0 0.0
-    refr     0.5 1.0
+    refr     0.2 1.5
 
 geometry
     plane    0.0 1.0  0.0

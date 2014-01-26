@@ -1,0 +1,49 @@
+newmtl A
+Ka 0.5 0.5 0
+Kd 1 1 0
+Ks 1 1 1
+Ns 4
+
+newmtl B
+Ka 0.5 0 0
+Kd 1 0 0
+Ks 1 1 1
+Ns 4
+
+newmtl C
+Ka 0 0.5 0
+Kd 1 1 0
+Ks 1 1 1
+Ns 4
+
+newmtl D
+Ka 0.5 0.5 0.5
+Kd 1 1 1
+Ks 1 1 1
+Ns 4
+
+newmtl E
+Ka 0.5 0.3 0.3
+Kd 1 0.78 0.78
+Ks 1 1 1
+Ns 4
+
+newmtl F
+Ka 0.3 0.3 0.5
+Kd 0.78 0.78 1
+Ks 1 1 1
+Ns 4
+
+newmtl spiral
+Ns 100
+Ka 1.0 1.0 1.0
+Kd 1.0 1.0 1.0
+map_Kd media/francois/spiral.png
+map_d media/francois/spiral.png
+
+newmtl dots
+Ns 100
+Ka 1.0 1.0 1.0
+Kd 1.0 1.0 1.0
+map_Kd media/light/dots.png
+map_d media/light/dots.png
