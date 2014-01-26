@@ -7,7 +7,7 @@ camera
 
 light
     pos   0.0 5.0 40.5
-    color 0.5 0.5 0.5
+    color 0.2 0.2 0.2
 
 geometry
     obj      media/mitsuba/mitsuba.obj media/mitsuba

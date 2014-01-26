@@ -124,7 +124,22 @@ impl Texture2d {
                                     Some(Arc::new(ImageData::new(data,
                                     Vec2::new(image.width as uint, image.height as uint))))
                                 }
+                                else if image.depth == 2 {
+                                    for p in image.data.chunks(2) {
+                                        let r = p[0] as f32 / 255.0;
+                                        let g = p[1] as f32 / 255.0;
 
+                                        if opacity {
+                                            data.push(Vec4::new(1.0, 1.0, 1.0, g * r));
+                                        }
+                                        else {
+                                            data.push(Vec4::new(r * g, r * g, r * g, 1.0));
+                                        }
+                                    }
+
+                                    Some(Arc::new(ImageData::new(data,
+                                    Vec2::new(image.width as uint, image.height as uint))))
+                                }
                                 else if image.depth == 3 {
                                     for p in image.data.chunks(3) {
                                         let r = p[0] as f32 / 255.0;

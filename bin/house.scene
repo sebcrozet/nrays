@@ -9,7 +9,7 @@ light
     pos   4.0 1.5 0.5
     color 1.0 1.0 1.0
     nsample 10
-    radius 1.0
+    radius 0.1
 
 geometry
     obj      media/house/san-miguel.obj media/house

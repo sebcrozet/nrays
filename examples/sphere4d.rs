@@ -51,6 +51,7 @@ fn main() {
         Vec3::new(1.0, 1.0, 1.0),
         Vec3::new(1.0, 1.0, 1.0),
         None,
+        None,
         100.0
     ) as ~Material:Freeze+Send);
 

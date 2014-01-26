@@ -67,11 +67,13 @@ impl SceneNode {
                 match inter.uvs {
                     None          => Some(inter),
                     Some(ref uvs) => {
-                        let cn = (na::normalize(&nmap.sample(uvs)) - 0.5f32) * 2.0f32;
+                        let shift_color = nmap.sample(uvs);
+                        let shift       = (shift_color.x + shift_color.y + shift_color.z) / 3.0;
 
-                        inter.normal.x = na::cast(cn.x); 
-                        inter.normal.y = na::cast(cn.y); 
-                        inter.normal.z = na::cast(cn.z); 
+                        inter.toi = inter.toi - na::cast(shift);
+                        // inter.normal.x = na::cast(cn.x); 
+                        // inter.normal.y = na::cast(cn.y); 
+                        // inter.normal.z = na::cast(cn.z); 
 
                         Some(inter)
                     }

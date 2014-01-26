@@ -7,11 +7,11 @@ camera
 
 light
     pos   0.0 40.0 0.0
-    color 1.0 1.0 1.0
+    color 0.5 0.5 0.5
 
 light
     pos   -40.0 40.0 0.0
-    color 1.0 1.0 1.0
+    color 0.5 0.5 0.5
 
 geometry
     obj      media/head/head.OBJ media/head

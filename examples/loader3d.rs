@@ -20,15 +20,14 @@ use std::str;
 use std::str::Words;
 use std::hashmap::HashMap;
 use extra::arc::Arc;
-use nalgebra::na::{Vec2, Vec3, Vec4, Iso3};
+use nalgebra::na::{Vec2, Vec3, Iso3};
 use nalgebra::na;
 use ncollide::geom::{Plane, Ball, Cone, Cylinder, Box, Mesh};
 use nrays::scene_node::SceneNode;
 use nrays::material::Material;
 use nrays::normal_material::NormalMaterial;
 use nrays::phong_material::PhongMaterial;
-use nrays::texture2d::{ImageData, Texture2d, Bilinear, Wrap};
-use nrays::texture2d;
+use nrays::texture2d::{Texture2d, Bilinear, Wrap};
 use nrays::uv_material::UVMaterial;
 use nrays::scene::Scene;
 use nrays::scene;
@@ -210,6 +209,7 @@ fn parse(string: &str) -> (~[Light], ~[Arc<SceneNode>], ~[Camera]) {
             Vec3::new(1.0, 1.0, 1.0),
             Vec3::new(1.0, 1.0, 1.0),
             None,
+            None,
             100.0
         ) as ~Material:Send+Freeze);
 
@@ -374,37 +374,6 @@ fn register_light(props: Properties, lights: &mut ~[Light]) {
     lights.push(light);
 }
 
-fn merge_texture_and_alpha(t: &Option<Texture2d>, a: &Option<Texture2d>) -> Option<Arc<ImageData>> {
-    if t.is_none() {
-        a.as_ref().map(|a| a.data.clone())
-    }
-    else if a.is_some() {
-        let mut new_data = ~[];
-
-        let dimt = {
-            let bt = t.as_ref().unwrap();
-            let ba = a.as_ref().unwrap();
-            let it = bt.data.get().pixels.iter();
-            let ia = ba.data.get().pixels.iter();
-            let dimt = bt.data.get().dims.clone();
-            let dima = ba.data.get().dims.clone();
-
-            assert!(dimt == dima);
-
-            for (px, alpha) in it.zip(ia) {
-                new_data.push(Vec4::new(px.x, px.y, px.z, alpha.w));
-            }
-
-            dimt
-        };
-
-        Some(Arc::new(ImageData::new(new_data, dimt)))
-    }
-    else {
-        t.as_ref().map(|t| t.data.clone())
-    }
-}
-
 fn register_mtllib(path: &str, mtllib: &mut HashMap<~str, Arc<~Material:Send+Freeze>>) {
     let materials = mtl::parse_file(&Path::new(path)).expect("Failed to parse the mtl file: " + path);
 
@@ -413,15 +382,12 @@ fn register_mtllib(path: &str, mtllib: &mut HashMap<~str, Arc<~Material:Send+Fre
 
         let a = m.opacity_map.as_ref().map(|t| Texture2d::from_png(&Path::new(t.as_slice()), true, Bilinear, Wrap).expect("Image not found."));
 
-        let tex     = merge_texture_and_alpha(&t, &a);
-        let texture = tex.map(|tex| Texture2d::new(tex, Bilinear, Wrap));
-
-
         let color = ~PhongMaterial::new(
             m.ambiant,
             m.diffuse,
             m.specular,
-            texture,
+            t,
+            a,
             m.shininess
             ) as ~Material:Send+Freeze;
 
@@ -515,15 +481,11 @@ fn register_geometry(props:  Properties,
                     let mesh = ~Mesh::new_with_margin(coords.clone(), faces, Some(uvs.clone()), Some(ns.clone()), 0.0);
                     match mat {
                         Some(m) => {
-                            let mut key = ~"";
-
                             let t = match m.diffuse_texture {
                                 None        => None,
                                 Some(ref t) => {
                                     let mut p = mtlpath.clone();
                                     p.push(t.as_slice());
-
-                                    key = key + p.as_str().unwrap();
 
                                     if !p.exists() {
                                         fail!(format!("Image not found: {}", p.as_str()));
@@ -539,8 +501,6 @@ fn register_geometry(props:  Properties,
                                     let mut p = mtlpath.clone();
                                     p.push(a.as_slice());
 
-                                    key = key + p.as_str().unwrap();
-
                                     if !p.exists() {
                                         fail!(format!("Image not found: {}", p.as_str()));
                                     }
@@ -549,32 +509,12 @@ fn register_geometry(props:  Properties,
                                 }
                             };
 
-                            let texture;
-
-                            if t.is_some() && a.is_some() {
-                                let tex = texture2d::get_texture_manager(|tm| {
-                                    let found = match tm.loaded_opaque.find(&key) {
-                                        None       => merge_texture_and_alpha(&t, &a).unwrap(),
-                                        Some(data) => data.clone()
-                                    };
-
-                                    tm.loaded_opaque.insert(key.clone(), found.clone());
-
-                                    found
-                                });
-
-                                texture = Some(tex);
-                            }
-                            else {
-                                texture = merge_texture_and_alpha(&t, &a);
-                            }
-
-
                             let color = Arc::new(~PhongMaterial::new(
                                 m.ambiant,
                                 m.diffuse,
                                 m.specular,
-                                texture.map(|t| Texture2d::new(t, Bilinear, Wrap)),
+                                t,
+                                a,
                                 m.shininess
                                 ) as ~Material:Send+Freeze);
 

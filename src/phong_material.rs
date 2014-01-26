@@ -13,7 +13,8 @@ pub struct PhongMaterial {
     diffuse_color:      Vec3<f32>,
     ambiant_color:      Vec3<f32>,
     specular_color:     Vec3<f32>,
-    texture:            Option<Texture2d>, // FIXME: put this on an ARC?
+    texture:            Option<Texture2d>,
+    alpha:              Option<Texture2d>,
     shininess:          f32 // FIXME: rename that
 }
 
@@ -22,6 +23,7 @@ impl PhongMaterial {
                diffuse_color:  Vec3<f32>,
                specular_color: Vec3<f32>,
                texture:        Option<Texture2d>,
+               alpha:          Option<Texture2d>,
                shininess:      f32)
                -> PhongMaterial {
         PhongMaterial {
@@ -29,6 +31,7 @@ impl PhongMaterial {
             ambiant_color:  ambiant_color,
             specular_color: specular_color,
             texture:        texture,
+            alpha:          alpha,
             shininess:      shininess
         }
     }
@@ -37,20 +40,31 @@ impl PhongMaterial {
 impl Material for PhongMaterial {
     fn ambiant(&self, _: &V, _: &V, uvs: &Option<Vec3<N>>) -> Vec4<f32> {
         // initialize with the ambiant color
-        let tex_color;
         
-        if na::dim::<V>() == 3 && uvs.is_some() && self.texture.is_some() {
+        if na::dim::<V>() == 3 && uvs.is_some() {
+            let mut tex_color = Vec4::new(1.0, 1.0, 1.0, 1.0);
+
             let uvs   = uvs.as_ref().unwrap();
-            let tex   = self.texture.as_ref().unwrap();
-            tex_color = tex.sample(uvs);
+
+            if self.texture.is_some() {
+                let tex     = self.texture.as_ref().unwrap();
+                tex_color   = tex.sample(uvs);
+                tex_color.w = 1.0;
+            }
+
+            if self.alpha.is_some() {
+                let alpha   = self.alpha.as_ref().unwrap();
+                tex_color.w = alpha.sample(uvs).w;
+            }
+
+            let a = self.ambiant_color;
+
+            Vec4::new(a.x, a.y, a.z, 1.0) * tex_color
         }
         else {
-            tex_color = Vec4::new(1.0f32, 1.0, 1.0, 1.0)
+            let a = self.ambiant_color;
+            Vec4::new(a.x, a.y, a.z, 1.0)
         }
-
-        let a = self.ambiant_color;
-
-        Vec4::new(a.x, a.y, a.z, 1.0) * tex_color
     }
 
     fn compute(&self,
@@ -63,6 +77,7 @@ impl Material for PhongMaterial {
         // initialize with the ambiant color
         let mut res;
         let tex_color;
+        let alpha;
         
         if na::dim::<V>() == 3 && uvs.is_some() && self.texture.is_some() {
             let uvs     = uvs.as_ref().unwrap();
@@ -74,7 +89,15 @@ impl Material for PhongMaterial {
             tex_color = Vec4::new(1.0f32, 1.0, 1.0, 1.0)
         }
 
-        let alpha     = tex_color.w;
+        if na::dim::<V>() == 3 && uvs.is_some() && self.alpha.is_some() {
+            let uvs = uvs.as_ref().unwrap();
+            let tex = self.alpha.as_ref().unwrap();
+            alpha   = tex.sample(uvs).w;
+        }
+        else {
+            alpha = 1.0;
+        }
+
         let tex_color = Vec3::new(tex_color.x, tex_color.y, tex_color.z);
         res = self.ambiant_color * tex_color;
 
