@@ -1,0 +1,20 @@
+camera
+    output out.png
+    resolution 256 256
+    eye  -0.3 0.5 0.5
+    at   0.2 0.45 -100.0
+    fovy 45.0
+    aa 4 0.1
+
+light
+    pos   -2.0 0.5 0.5
+    color 0.5 0.5 0.5
+    nsample 3
+    radius  0.1
+
+geometry
+    obj      media/aptmt.obj media
+    pos      0.0 0.0 0.0
+    angle    0.0 0.0 0.0
+    material default
+    refl     0.8 0.1
