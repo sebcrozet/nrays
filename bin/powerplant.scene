@@ -7,7 +7,9 @@ camera
 
 light
     pos   22000.0 22000.0 22000.0
-    color 1.0 1.0 1.0
+    color 0.5 0.5 0.5
+    radius 1000.0
+    nsample 50
 
 geometry
     obj      media/powerplant/powerplant.obj media/powerplant
