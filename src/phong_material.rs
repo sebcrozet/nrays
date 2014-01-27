@@ -123,6 +123,7 @@ impl Material for PhongMaterial {
 
         res = self.ambiant_color * tex_color;
 
+        let mut nb_active_lights = 0.0f32;
         // compute the contribution of each light
         for light in scene.lights().iter() {
             let mut acc = Vec3::new(0.0f32, 0.0, 0.0);
@@ -157,13 +158,13 @@ impl Material for PhongMaterial {
                     else {
                         acc = acc + light.color * diffuse;
                     }
+                    nb_active_lights = nb_active_lights + 1.0f32;
                 }
             });
 
             res = res + acc / ((light.racsample * light.racsample) as f32);
         }
-
-        path.color = path.color * (1.0f32 - path.mix_coef) + res * path.mix_coef;
+        path.color = res * path.mix_coef;
     }
 
 

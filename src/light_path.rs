@@ -7,7 +7,11 @@ pub struct LightPath {
     ray:    Ray,
     energy: f32,
     color: Vec3<f32>,
+    total_color: Vec3<f32>,
+    normal_contact: V,
     last_intersection: V,
+    no_hit: bool,
+    total_weight: f32,
     mix_coef: f32
 
 }
@@ -18,7 +22,11 @@ impl LightPath {
             ray: Ray::new(orig, dir),
             energy: 1.0f32,
             color: col,
+            total_color: col,
+            normal_contact: dir,
             last_intersection: orig,
+            total_weight: 0.0f32,
+            no_hit: true,
             mix_coef: 1.0f32
         }
     }

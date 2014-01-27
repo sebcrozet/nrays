@@ -78,6 +78,7 @@ impl Scene {
 
         print!("{} / {} − {}%\r", rays_done, nrays, progress);
 
+
         let nb_lights = self.lights().len();
         let mut light_progress = 0;
 
@@ -88,10 +89,21 @@ impl Scene {
             light.sample(|pos| {
                 let dir  = pos - light.pos();
                 let mut path : &mut LightPath = &mut LightPath::new(pos, dir, light.color);
-                self.trace_light(path);
-                extra_lights.push(Light::new(path.last_intersection, 1.0, 1, path.color));
+                for t in range(0, 10) {
+                      self.trace_path(path);
+                      let nproj = path.normal_contact * na::dot(&path.ray.dir,
+                                                                &path.normal_contact);
+                      let rdir  = path.ray.dir - nproj * na::cast::<f32, N>(2.0);
+                      path.ray.orig = path.last_intersection + rdir * na::cast::<f32, N>(0.001);
+                      path.ray.dir = rdir;
+                     // path.ray.orig = path.last_intersection;
+
+                      path.total_color = (path.total_color + path.color) * path.mix_coef;
+                      extra_lights.push(Light::new(path.last_intersection, 0.0, 1, path.total_color));
+                      path.color = Vec3::new(0.0f32, 0.0, 0.0);
+                }
                 light_progress = light_progress + 1;
-                let percentage = ((light_progress as f64) / (nb_lights as f64) * 100.0) as int;
+                let percentage = light_progress;
                 print!("lights done {} \n", percentage);
             });
         }
@@ -111,7 +123,26 @@ impl Scene {
                     let orig: Vec2<N> = Vec2::new(na::cast(i), na::cast(j)) + perturbation;
 
                     let ray = unproject(&orig);
-                    let c   = self.trace(&RayWithEnergy::new(ray.orig.clone(), ray.dir));
+                    let mut path : &mut LightPath = &mut LightPath::new(ray.orig, ray.dir,
+                                                                        Vec3::new(0.0f32, 0.0, 0.0));
+                   let mut colors: ~[Vec3<f32>] = ~[];
+                   let mut mixes: ~[f32] = ~[];
+
+                   for t in range(0, 4) {
+                        self.trace_path(path);
+                        let nproj = path.normal_contact * na::dot(&path.ray.dir,
+                                                                  &path.normal_contact);
+                        let rdir  = path.ray.dir - nproj * na::cast::<f32, N>(2.0);
+                        path.ray.orig = path.last_intersection + rdir * na::cast::<f32, N>(0.001);
+                        path.ray.dir = rdir;
+                       // path.ray.orig = path.last_intersection;
+
+                        colors.push(path.color);
+                        mixes.push(path.mix_coef);
+                        path.color = Vec3::new(0.0f32, 0.0, 0.0);
+
+                    }
+
                     let new_progress = ((rays_done as f64) / nrays * 100.0) as int;
 
                     if new_progress != progress {
@@ -120,7 +151,13 @@ impl Scene {
                         stdio::flush();
                     }
 
-                    tot_c = tot_c + c;
+                    let mut total_color = Vec3::new(0.0f32, 0.0, 0.0);
+                    for i in range(0, colors.len()) {
+                        let index = colors.len() - 1 - i;
+                        total_color = (total_color + colors[index]) * mixes[index];
+                    }
+
+                    tot_c = tot_c + total_color;
                 }
 
                 pixels.push(tot_c / na::cast::<uint, f32>(ray_per_pixel));
@@ -190,6 +227,25 @@ impl Scene {
                 let refl = sn.refl.compute(ray, &inter, toi.n1_ref(), toi.n2_ref(), self);
 
                 obj * (1.0 - sn.refl.mix)+ refl * sn.refl.mix
+            }
+        }
+    }
+
+    pub fn trace_path(&self, path: &mut LightPath) {
+        let cast = self.world.cast_ray(&path.ray, &|b, r| { b.cast(r).map(|(t, n, u)| (t, (t, n, u))) });
+
+        match cast {
+            None     => {path.no_hit = true;},
+            Some((_, toi, sn)) => {
+                let inter = path.ray.orig + path.ray.dir * *toi.n0_ref();
+                path.last_intersection = inter;
+                path.no_hit = false;
+
+                sn.material.compute_for_light_path(path, &inter, toi.n1_ref(), toi.n2_ref(), self);
+                path.normal_contact = *toi.n1_ref();
+                path.energy = path.energy - sn.refl.atenuation;
+                path.mix_coef = sn.refl.mix;
+
             }
         }
     }

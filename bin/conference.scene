@@ -8,11 +8,10 @@ camera
     fovy 89.0
 
 light
-    pos   30.0 20.0 -20.0
+    pos  -125.0 10.0 100.0
     color 1.0 1.0 1.0
-    nsample 25
+    nsample 50
     radius 0.25
-
 
 geometry
     obj      media/conference/conference.obj media/conference
