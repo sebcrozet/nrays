@@ -25,8 +25,7 @@ geometry
     cone     0.5 0.5
     pos      2.0 0.0 0.0
     angle    0.0 0.0 0.0
-    material green
-    refr     0.3 1.0
+    material transparent_green
 
 geometry
     box      1.0 0.5 1.0

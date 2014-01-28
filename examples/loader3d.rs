@@ -159,7 +159,7 @@ struct Properties {
     resolution: Option<(uint, Vec2<f64>)>,
     output:     Option<(uint, ~str)>,
     refl:       Option<(uint, Vec2<f64>)>,
-    refr:       Option<(uint, Vec2<f64>)>,
+    refr:       Option<(uint, f64)>,
     aa:         Option<(uint, Vec2<f64>)>,
     radius:     Option<(uint, f64)>,
     nsample:    Option<(uint, f64)>,
@@ -219,9 +219,9 @@ fn parse(string: &str) -> (~[Light], ~[Arc<SceneNode>], ~[Camera]) {
             100.0
         ) as ~Material:Send+Freeze);
 
-        mtllib.insert(~"normals", Arc::new(~NormalMaterial::new() as ~Material:Send+Freeze));
-        mtllib.insert(~"uvs", Arc::new(~UVMaterial::new() as ~Material:Send+Freeze));
-        mtllib.insert(~"default", white);
+        mtllib.insert(~"normals", (1.0, Arc::new(~NormalMaterial::new() as ~Material:Send+Freeze)));
+        mtllib.insert(~"uvs", (1.0, Arc::new(~UVMaterial::new() as ~Material:Send+Freeze)));
+        mtllib.insert(~"default", (1.0, white));
 
         match tag {
             None    => { },
@@ -256,7 +256,7 @@ fn parse(string: &str) -> (~[Light], ~[Arc<SceneNode>], ~[Camera]) {
                         &"output"     => props.output     = Some((l, parse_name(l, words))),
                         &"resolution" => props.resolution = Some((l, parse_duet(l, words))),
                         &"refl"       => props.refl       = Some((l, parse_duet(l, words))),
-                        &"refr"       => props.refr       = Some((l, parse_duet(l, words))),
+                        &"refr"       => props.refr       = Some((l, parse_number(l, words))),
                         &"aa"         => props.aa         = Some((l, parse_duet(l, words))),
                         &"radius"     => props.radius     = Some((l, parse_number(l, words))),
                         &"nsample"    => props.nsample    = Some((l, parse_number(l, words))),
@@ -284,7 +284,7 @@ fn parse(string: &str) -> (~[Light], ~[Arc<SceneNode>], ~[Camera]) {
 
 fn register(mode:    &Mode,
             props:   Properties,
-            mtllib:  &mut HashMap<~str, Arc<~Material:Send+Freeze>>,
+            mtllib:  &mut HashMap<~str, (f32, Arc<~Material:Send+Freeze>)>,
             lights:  &mut ~[Light],
             nodes:   &mut ~[Arc<SceneNode>],
             cameras: &mut ~[Camera]) {
@@ -394,13 +394,15 @@ fn register_light(props: Properties, lights: &mut ~[Light]) {
     lights.push(light);
 }
 
-fn register_mtllib(path: &str, mtllib: &mut HashMap<~str, Arc<~Material:Send+Freeze>>) {
+fn register_mtllib(path: &str, mtllib: &mut HashMap<~str, (f32, Arc<~Material:Send+Freeze>)>) {
     let materials = mtl::parse_file(&Path::new(path)).expect("Failed to parse the mtl file: " + path);
 
     for m in materials.move_iter() {
         let t = m.diffuse_texture.as_ref().map(|t| Texture2d::from_png(&Path::new(t.as_slice()), false, Bilinear, Wrap).expect("Image not found."));
 
         let a = m.opacity_map.as_ref().map(|t| Texture2d::from_png(&Path::new(t.as_slice()), true, Bilinear, Wrap).expect("Image not found."));
+
+        let alpha = m.alpha;
 
         let color = ~PhongMaterial::new(
             m.ambiant,
@@ -411,12 +413,12 @@ fn register_mtllib(path: &str, mtllib: &mut HashMap<~str, Arc<~Material:Send+Fre
             m.shininess
             ) as ~Material:Send+Freeze;
 
-        mtllib.insert(m.name, Arc::new(color));
+        mtllib.insert(m.name, (alpha, Arc::new(color)));
     }
 }
 
 fn register_geometry(props:  Properties,
-                     mtllib: &mut HashMap<~str, Arc<~Material:Send+Freeze>>,
+                     mtllib: &mut HashMap<~str, (f32, Arc<~Material:Send+Freeze>)>,
                      nodes:  &mut ~[Arc<SceneNode>]) {
     warn_if_some(&props.eye);
     warn_if_some(&props.at);
@@ -445,7 +447,10 @@ fn register_geometry(props:  Properties,
         solid     = props.solid;
         let mname = props.material.as_ref().unwrap().n1_ref();
         special   = mname.as_slice() == "uvs" || mname.as_slice() == "normals";
-        material  = mtllib.find(mname).unwrap_or_else(|| fail!("Attempted to use an unknown material: " + *mname)).clone();
+        let (a, m)= mtllib.find(mname).unwrap_or_else(|| fail!("Attempted to use an unknown material: " + *mname)).clone();
+
+        alpha    = a;
+        material = m;
 
         let pos       = props.pos.as_ref().unwrap().n1();
         let mut angle = props.angle.as_ref().unwrap().n1();
@@ -461,9 +466,8 @@ fn register_geometry(props:  Properties,
         refl_m = refl_param.x as f32;
         refl_a = refl_param.y as f32;
 
-        let refr_param = props.refr.unwrap_or((props.superbloc, Vec2::new(1.0, 1.0))).n1();
-        alpha  = refr_param.x as f32;
-        refr_c = refr_param.y as f64;
+        let refr_param = props.refr.unwrap_or((props.superbloc, 1.0)).n1();
+        refr_c = refr_param as f64;
     }
 
     if props.geom.len() > 1 {
@@ -547,6 +551,7 @@ fn register_geometry(props:  Properties,
                                 }
                             };
 
+                            let alpha = m.alpha * alpha;
                             let color = Arc::new(~PhongMaterial::new(
                                 m.ambiant,
                                 m.diffuse,

@@ -10,11 +10,11 @@ camera
 
 geometry
     box 0.5 0.5 0.5
-    pos 1 -0.25 5
+    pos 1 -0.24 5
     angle 0 0 0
     material A
     refl 0.0 0.0
-    refr 0.3 1.5
+    refr 1.5
 
 geometry
     box 0.5 0.5 0.5
@@ -22,7 +22,7 @@ geometry
     angle 0 0 0
     material spiral
     refl 0.0 0.0
-    refr 1.0 1.5
+    refr 1.5
 
 geometry
     ball 0.5

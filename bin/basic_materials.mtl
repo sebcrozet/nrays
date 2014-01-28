@@ -24,3 +24,27 @@ Ns 100
 Ka 1.0 0.0 0.0
 Kd 1.0 0.0 0.0
 
+newmtl transparent_green
+d 0.2
+Ns 100
+Ka 0.0 0.1 0.0
+Kd 0.0 1.0 0.0
+
+newmtl transparent_red
+d 0.2
+Ns 100
+Ka 0.0 0.0 0.1
+Kd 0.0 0.0 1.0
+
+newmtl transparent_blue
+d 0.2
+Ns 100
+Ka 0.1 0.0 0.0
+Kd 1.0 0.0 0.0
+
+newmtl transparent_default
+d 0.2
+Ns 100
+Ka 0.1 0.1 0.1
+Kd 1.0 1.0 1.0
+Ks 1.0 1.0 1.0

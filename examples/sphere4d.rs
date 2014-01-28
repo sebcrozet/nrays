@@ -59,7 +59,7 @@ fn main() {
 
     let box_shape = ~Box::new_with_margin(Vec4::new(0.25, 0.25, 0.25, 0.00000001), 0.000000001);
     let ball      = ~Ball::new(0.25);
-    let cone      = ~Box::new_with_margin(Vec4::new(0.25, 0.25, 0.25, 0.00000001), 0.00000001); // Cone::new_with_margin(0.25, 0.25, 0.0);
+    let cone      = ~Cone::new_with_margin(0.25, 0.25, 0.0);
     let cylinder  = ~Cylinder::new_with_margin(0.25, 0.25, 0.0);
 
     let pos  = na::append_translation(&transform, &Vec4::new(0.0, 0.0, 0.0,    4.0));

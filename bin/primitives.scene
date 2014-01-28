@@ -19,31 +19,31 @@ geometry
     angle    0.0 0.0 0.0
     material default
     refl     0.0 0.0
-    refr     0.2 1.5
+    refr     1.5
 
 geometry
     box      1.0 1.0 1.0
     pos      2.1 0.0 0.0
     angle    0.0 0.0 0.0
-    material red
+    material transparent_red
     refl     0.0 0.0
-    refr     0.2 1.5
+    refr     1.5
 
 geometry
     cone     1.0 1.0
     pos      0.0 -2.1 0.0
     angle    0.0 0.0 0.0
-    material blue
+    material transparent_blue
     refl     0.0 0.0
-    refr     0.2 1.5
+    refr     1.5
 
 geometry
     cylinder 1.0 1.0
     pos      0.0 2.1 1.0
     angle    0.0 0.0 0.0
-    material green
+    material transparent_green
     refl     0.0 0.0
-    refr     0.2 1.5
+    refr     1.5
 
 geometry
     plane    0.0 1.0  0.0
