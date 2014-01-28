@@ -22,7 +22,13 @@ use std::hashmap::HashMap;
 use extra::arc::Arc;
 use nalgebra::na::{Vec2, Vec3, Iso3};
 use nalgebra::na;
+use ncollide::bounding_volume::{AABB, HasAABB, implicit_shape_aabb};
 use ncollide::geom::{Plane, Ball, Cone, Cylinder, Box, Mesh};
+use ncollide::implicit::{Implicit, HasMargin};
+use ncollide::ray::{Ray, RayCast, RayIntersection, implicit_toi_and_normal_with_ray};
+use ncollide::math::{N, V, M};
+use ncollide::narrow::algorithm::johnson_simplex::JohnsonSimplex;
+use ncollide::geom::Geom;
 use nrays::scene_node::SceneNode;
 use nrays::material::Material;
 use nrays::normal_material::NormalMaterial;
@@ -142,7 +148,7 @@ impl Camera {
 
 struct Properties {
     superbloc: uint,
-    geom:       Option<(uint, Geometry)>,
+    geom:       ~[(uint, Geometry)],
     pos:        Option<(uint, Vec3<f64>)>,
     angle:      Option<(uint, Vec3<f64>)>,
     material:   Option<(uint, ~str)>,
@@ -164,7 +170,7 @@ impl Properties {
     pub fn new(l: uint) -> Properties {
         Properties {
             superbloc:  l,
-            geom:       None,
+            geom:       ~[],
             pos:        None,
             angle:      None,
             material:   None,
@@ -255,12 +261,12 @@ fn parse(string: &str) -> (~[Light], ~[Arc<SceneNode>], ~[Camera]) {
                         &"radius"     => props.radius     = Some((l, parse_number(l, words))),
                         &"nsample"    => props.nsample    = Some((l, parse_number(l, words))),
                         // geometries
-                        &"ball"       => props.geom = Some((l, parse_ball(l, words))),
-                        &"plane"      => props.geom = Some((l, parse_plane(l, words))),
-                        &"box"        => props.geom = Some((l, parse_box(l, words))),
-                        &"cylinder"   => props.geom = Some((l, parse_cylinder(l, words))),
-                        &"cone"       => props.geom = Some((l, parse_cone(l, words))),
-                        &"obj"        => props.geom = Some((l, parse_obj(l, words))),
+                        &"ball"       => props.geom.push((l, parse_ball(l, words))),
+                        &"plane"      => props.geom.push((l, parse_plane(l, words))),
+                        &"box"        => props.geom.push((l, parse_box(l, words))),
+                        &"cylinder"   => props.geom.push((l, parse_cylinder(l, words))),
+                        &"cone"       => props.geom.push((l, parse_cone(l, words))),
+                        &"obj"        => props.geom.push((l, parse_obj(l, words))),
                         &"solid"      => props.solid = true,
                         _             => {
                             println!("Warning: unknown line {} ignored: `{:s}'", l, line);
@@ -290,8 +296,22 @@ fn register(mode:    &Mode,
     }
 }
 
+fn warn_if_not_empty<T>(t: &[(uint, T)]) {
+    if !t.is_empty() {
+        for g in t.iter() {
+            warn(g.n0_ref().clone(), "dropped unexpected attribute.")
+        }
+    }
+}
+
 fn warn_if_some<T>(t: &Option<(uint, T)>) {
     t.as_ref().map(|&(l, _)| warn(l, "dropped unexpected attribute."));
+}
+
+fn fail_if_empty<T>(t: &[(uint, T)], l: uint, attrname: &str) {
+    if t.is_empty() {
+        error(l, "missing attribute: " + attrname);
+    }
 }
 
 fn fail_if_none<T>(t: &Option<(uint, T)>, l: uint, attrname: &str) {
@@ -302,7 +322,7 @@ fn fail_if_none<T>(t: &Option<(uint, T)>, l: uint, attrname: &str) {
 }
 
 fn register_nothing(props: Properties) {
-    warn_if_some(&props.geom);
+    warn_if_not_empty(props.geom);
     warn_if_some(&props.pos);
     warn_if_some(&props.angle);
     warn_if_some(&props.material);
@@ -320,7 +340,7 @@ fn register_nothing(props: Properties) {
 }
 
 fn register_camera(props: Properties, cameras: &mut ~[Camera]) {
-    warn_if_some(&props.geom);
+    warn_if_not_empty(props.geom);
     warn_if_some(&props.pos);
     warn_if_some(&props.angle);
     warn_if_some(&props.material);
@@ -350,7 +370,7 @@ fn register_camera(props: Properties, cameras: &mut ~[Camera]) {
 }
 
 fn register_light(props: Properties, lights: &mut ~[Light]) {
-    warn_if_some(&props.geom);
+    warn_if_not_empty(props.geom);
     warn_if_some(&props.angle);
     warn_if_some(&props.material);
     warn_if_some(&props.eye);
@@ -407,9 +427,8 @@ fn register_geometry(props:  Properties,
 
     fail_if_none(&props.pos, props.superbloc, "pos <x> <y> <z>");
     fail_if_none(&props.angle, props.superbloc, "color <r> <g> <b>");
-    fail_if_none(&props.geom, props.superbloc, "<geom_type> <geom parameters>]");
+    fail_if_empty(props.geom, props.superbloc, "<geom_type> <geom parameters>]");
     fail_if_none(&props.material, props.superbloc, "material <material_name>");
-    fail_if_none(&props.refl, props.superbloc, "refl <alpha> <atenuation>");
 
 
     let special;
@@ -435,9 +454,10 @@ fn register_geometry(props:  Properties,
         angle.y = angle.y.to_radians();
         angle.z = angle.z.to_radians();
 
-        let refl_param = props.refl.as_ref().unwrap().n1();
         transform = Iso3::new(pos, angle);
         normals   = None;
+
+        let refl_param = props.refl.unwrap_or((props.superbloc, Vec2::new(0.0, 0.0))).n1();
         refl_m = refl_param.x as f32;
         refl_a = refl_param.y as f32;
 
@@ -446,8 +466,26 @@ fn register_geometry(props:  Properties,
         refr_c = refr_param.y as f64;
     }
 
+    if props.geom.len() > 1 {
+        let mut geoms = ~[];
 
-    match props.geom.unwrap().n1() {
+        for &(ref l, ref g) in props.geom.iter() {
+            match *g {
+                Ball(ref r) => geoms.push(~Ball::new(*r) as ~ImplicitGeom:Send+Freeze),
+                Box(ref rs) => geoms.push(~Box::new_with_margin(*rs, 0.0) as ~ImplicitGeom:Send+Freeze),
+                Cylinder(ref h, ref r) => geoms.push(~Cylinder::new_with_margin(*h, *r, 0.0) as ~ImplicitGeom:Send+Freeze),
+                Cone(ref h, ref r) => geoms.push(~Cone::new_with_margin(*h, *r, 0.0) as ~ImplicitGeom:Send+Freeze),
+                _ => println!("Warning: unsuported geometry on a minkosky sum at line {}.", *l)
+            }
+        }
+
+        if !geoms.is_empty() {
+            nodes.push(Arc::new(SceneNode::new(material, refl_m, refl_a, alpha, refr_c, transform, ~MinkowksiSum::new(geoms), normals, solid)));
+            return;
+        }
+    }
+
+    match props.geom[0].n1() {
         Ball(r) =>
             nodes.push(Arc::new(SceneNode::new(material, refl_m, refl_a, alpha, refr_c, transform, ~Ball::new(r), normals, solid))),
         Box(rs) =>
@@ -606,4 +644,55 @@ fn parse_obj<'a>(l: uint, mut ws: Words<'a>) -> Geometry {
     let mtlpath = ws.next().unwrap_or_else(|| error(l, "2 paths were expected, found 1."));
 
     Obj(objpath.to_owned(), mtlpath.to_owned())
+}
+
+trait ImplicitGeom : Implicit<V, M> + Geom { }
+
+impl<T: Implicit<V, M> + Geom> ImplicitGeom for T { }
+
+struct MinkowksiSum {
+    geoms: ~[~ImplicitGeom:Freeze+Send]
+}
+
+impl MinkowksiSum {
+    pub fn new(geoms: ~[~ImplicitGeom:Freeze+Send]) -> MinkowksiSum {
+        MinkowksiSum {
+            geoms: geoms
+        }
+    }
+}
+
+impl HasAABB for MinkowksiSum {
+    fn aabb(&self, m: &M) -> AABB {
+        implicit_shape_aabb(m, self)
+    }
+}
+
+impl HasMargin for MinkowksiSum {
+    fn margin(&self) -> N {
+        na::cast(0.0)
+    }
+}
+
+impl Implicit<V, M> for MinkowksiSum {
+    fn support_point_without_margin(&self, transform: &M, dir: &V) -> V {
+        let mut pt  = na::zero::<V>();
+        let new_dir = na::inv_rotate(transform, dir);
+
+        for i in self.geoms.iter() {
+            pt = pt + i.support_point(&na::one(), &new_dir)
+        }
+
+        na::transform(transform, &pt)
+    }
+
+    fn support_point(&self, transform: &M, dir: &V) -> V {
+        self.support_point_without_margin(transform, dir)
+    }
+}
+
+impl RayCast for MinkowksiSum {
+    fn toi_and_normal_with_ray(&self, ray: &Ray, solid: bool) -> Option<RayIntersection> {
+        implicit_toi_and_normal_with_ray(&na::one(), self, &mut JohnsonSimplex::<V>::new_w_tls(), ray, solid)
+    }
 }
