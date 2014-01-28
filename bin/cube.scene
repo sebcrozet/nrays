@@ -7,14 +7,6 @@ camera
     at   0.0 0.0 0.0
     fovy 45.0
 
-camera
-    output out_aa.png
-    resolution 1024 1024
-    eye  0.0 5.0 10.0
-    at   0.0 0.0 0.0
-    fovy 45.0
-    aa   50 1.0
-
 light
     pos     0.0 5.0 5.0
     color   1.0 1.0 1.0

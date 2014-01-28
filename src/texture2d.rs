@@ -255,7 +255,7 @@ impl Texture2d {
                 let u_interpol = ul * (1.0 - shift_ux) + ur * shift_ux;
                 let d_interpol = dl * (1.0 - shift_ux) + dr * shift_ux;
 
-                u_interpol * (1.0 - shift_uy) + d_interpol * shift_uy
+                u_interpol * shift_uy + d_interpol * (1.0 - shift_uy)
             }
         }
     }
