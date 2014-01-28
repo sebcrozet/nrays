@@ -146,7 +146,7 @@ impl MtlMaterial {
     pub fn new_default(name: ~str) -> MtlMaterial {
         MtlMaterial {
             name:             name,
-            shininess:        0.0,
+            shininess:        60.0,
             alpha:            1.0,
             ambiant_texture:  None,
             diffuse_texture:  None,
