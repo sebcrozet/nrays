@@ -78,7 +78,7 @@ impl Material for PhongMaterial {
         let mut res;
         let tex_color;
         let alpha;
-        
+
         if na::dim::<V>() == 3 && uvs.is_some() && self.texture.is_some() {
             let uvs     = uvs.as_ref().unwrap();
             let tex     = self.texture.as_ref().unwrap();
