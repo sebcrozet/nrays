@@ -2,8 +2,9 @@ use std::num::Zero;
 use std::vec;
 use std::rt;
 use extra::arc::{Arc, RWArc};
-use nalgebra::na::{Vec3, Vec4, Mat4};
+use nalgebra::na::{Vec3, Vec4, Mat4, Norm};
 use nalgebra::na;
+use nalgebra::na::Indexable;
 use ncollide::bounding_volume::{AABB, HasAABB};
 use ncollide::partitioning::BVT;
 // use ncollide::partitioning::bvt_visitor::RayInterferencesCollector;
@@ -11,6 +12,7 @@ use ncollide::ray::{Ray, RayIntersection};
 use ncollide::math::{N, V};
 use material::Material;
 use ray_with_energy::RayWithEnergy;
+use intersection::Intersection;
 use scene_node::SceneNode;
 use image::Image;
 use light::Light;
@@ -39,6 +41,8 @@ pub type Vless = Vec2<N>;
 pub type Vless = Vec3<N>;
 
 #[cfg(dim3)]
+
+
 pub fn render(scene:         &Arc<Scene>,
               resolution:    &Vless,
               ray_per_pixel: uint,
@@ -51,6 +55,10 @@ pub fn render(scene:         &Arc<Scene>,
     let npixels: uint = NumCast::from(resolution.x * resolution.y).unwrap();
     let pixels        = vec::from_elem(npixels, na::zero());
     let pixels        = RWArc::new(pixels);
+
+
+    // Light rays
+
 
     let nrays = resolution.y * resolution.x * (ray_per_pixel as f64);
 
@@ -77,9 +85,12 @@ pub fn render(scene:         &Arc<Scene>,
             let parts     = npixels / num_thread + 1;
             let low_limit = parts * i;
             let up_limit  = (parts * (i + 1)).min(&npixels);
+            let nb_bounces = 4;
 
             do spawn() {
                 let mut pxs = vec::with_capacity(up_limit - low_limit);
+                let mut paths : ~[~[Intersection]] = ~[];
+
                 for ipt in range(low_limit, up_limit) {
                     let j = ipt / resx;
                     let i = ipt - j * resx;
@@ -100,8 +111,8 @@ pub fn render(scene:         &Arc<Scene>,
                         let eye: Vec3<f64> = na::from_homogeneous(&h_eye);
                         let ray = Ray::new(camera_eye, na::normalize(&(eye - camera_eye)));
 
-                        let c: Vec3<f32> = scene.get().trace(&RayWithEnergy::new(ray.orig.clone(), ray.dir));
 
+                        let c: Vec3<f32> = scene.get().trace(&RayWithEnergy::new(ray.orig.clone(), ray.dir));
                         tot_c = tot_c + c;
                     }
 
@@ -137,6 +148,26 @@ impl Scene {
             lights: lights,
             world:  bvt
         }
+    }
+
+    pub fn add_biderectional_lights(&mut self) {
+
+        let mut extra_lights: ~[Light] = ~[];
+        for light in self.lights.iter() {
+
+            light.sample(|pos| {
+                         let mut ldir = pos - light.pos;
+                         ldir.normalize();
+                         let mut ray = Ray::new(light.pos, ldir);
+                         self.trace_lights(&RayWithEnergy::new(light.pos, ldir), &mut extra_lights);
+
+            });
+        }
+
+        for light in extra_lights.iter() {
+            self.lights.push(*light);
+        }
+        println!("Number of additional lights : {}.", self.lights.len());
     }
 
     #[inline]
@@ -223,6 +254,15 @@ impl Scene {
         }
     }
 
+    pub fn integrate(&self, path: &[Intersection]) -> Vec3<f32> {
+        let mut color = Vec3::new(0.0f32, 0.0, 0.0);
+        for i in path.rev_iter() {
+            let col = Vec3::new(i.color.at(0), i.color.at(1), i.color.at(2));
+            color = color + col * (i.intensity as f32);
+        }
+        color
+    }
+
     pub fn trace(&self, ray: &RayWithEnergy) -> Vec3<f32> {
         let cast = self.world.cast_ray(&ray.ray, &|b, r| { b.get().cast(r).map(|inter| (inter.toi, inter)) });
 
@@ -250,6 +290,7 @@ impl Scene {
             }
         }
     }
+
 
     #[inline]
     fn trace_reflection(&self, mix: f32, attenuation: f32, ray: &RayWithEnergy, pt: &V, normal: &V) -> Vec3<f32> {
@@ -291,6 +332,89 @@ impl Scene {
             let new_pt  = pt + new_dir * 0.001;
 
             self.trace(&RayWithEnergy::new_with_energy(new_pt, new_dir, n2, ray.energy))
+        }
+        else {
+            na::zero()
+        }
+    }
+
+    pub fn trace_lights(&self, ray: &RayWithEnergy, lights: &mut ~[Light]) -> Vec3<f32> {
+        let cast = self.world.cast_ray(&ray.ray, &|b, r| { b.get().cast(r).map(|inter| (inter.toi, inter)) });
+
+        match cast {
+            None                 => na::zero(),
+            Some((_, inter, sn)) => {
+                let bsn       = sn.get();
+                let pt        = ray.ray.orig + ray.ray.dir * inter.toi;
+                let obj       = bsn.material.get().compute(ray, &pt, &inter.normal, &uvs(&inter), self);
+                let refl      = self.trace_reflection_lights(bsn.refl_mix, bsn.refl_atenuation, ray,
+                                                             &pt, &inter.normal, lights);
+
+                let alpha     = obj.w * bsn.alpha;
+                let obj_color = Vec3::new(obj.x, obj.y, obj.z) * (1.0 - bsn.refl_mix) + refl * bsn.refl_mix;
+                let refr      = self.trace_refraction_lights(alpha, bsn.refr_coeff, ray, &pt,
+                                                      &inter.normal, lights);
+
+                if alpha == 1.0 {
+                    let color = Vec3::new(obj_color.x, obj_color.y, obj_color.z);
+                    lights.push(Light::new(pt, 0.0, 1, color));
+                    color
+                }
+                else {
+                    let obj_color = Vec3::new(obj_color.x, obj_color.y, obj_color.z);
+                    let refr      = Vec3::new(refr.x, refr.y, refr.z);
+
+                    let color = obj_color * alpha + refr * (1.0 - alpha);
+                    lights.push(Light::new(pt, 0.0, 1, color));
+                    color
+                }
+            }
+        }
+    }
+
+
+    #[inline]
+    fn trace_reflection_lights(&self, mix: f32, attenuation: f32, ray: &RayWithEnergy, pt: &V, normal: &V,
+                        lights: &mut ~[Light]) -> Vec3<f32> {
+        if !mix.is_zero() && ray.energy > 0.1 {
+            let nproj      = normal * na::dot(&ray.ray.dir, normal);
+            let rdir       = ray.ray.dir - nproj * na::cast::<f32, N>(2.0);
+            let new_energy = ray.energy - attenuation;
+
+            self.trace_lights(
+                &RayWithEnergy::new_with_energy(
+                    pt + rdir * na::cast::<f32, N>(0.001),
+                    rdir,
+                    ray.refr.clone(),
+                    new_energy), lights)
+        }
+        else {
+            na::zero()
+        }
+    }
+
+    #[inline]
+    fn trace_refraction_lights(&self, alpha: f32, coeff: N, ray: &RayWithEnergy, pt: &V, normal: &V,
+                               lights: &mut ~[Light])  -> Vec3<f32> {
+        if alpha != 1.0 {
+            let n1;
+            let n2;
+
+            if ray.refr == na::cast(1.0) {
+                n1 = na::cast(1.0);
+                n2 = coeff;
+            }
+            else {
+                n1 = coeff;
+                n2 = na::cast(1.0);
+            }
+
+            let dir_along_normal = normal * na::dot(&ray.ray.dir, normal);
+            let tangent = ray.ray.dir - dir_along_normal;
+            let new_dir = na::normalize(&(dir_along_normal + tangent * (n2 / n1)));
+            let new_pt  = pt + new_dir * 0.001;
+
+            self.trace_lights(&RayWithEnergy::new_with_energy(new_pt, new_dir, n2, ray.energy), lights)
         }
         else {
             na::zero()

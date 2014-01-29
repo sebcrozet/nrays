@@ -15,6 +15,7 @@ pub mod image;
 pub mod light;
 pub mod material;
 pub mod ray_with_energy;
+pub mod intersection;
 
 pub mod phong_material;
 pub mod texture2d;

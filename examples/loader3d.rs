@@ -63,7 +63,9 @@ fn main() {
     let nnodes  = nodes.len();
     let nlights = lights.len();
     let ncams   = cameras.len();
-    let scene   = Arc::new(Scene::new(nodes, lights));
+    let mut l_scene = Scene::new(nodes, lights);
+    l_scene.add_biderectional_lights();
+    let scene   = Arc::new(l_scene);
     println!("Scene loaded. {} lights, {} objects, {} cameras.", nlights, nnodes, ncams);
 
     for c in cameras.move_iter() {
