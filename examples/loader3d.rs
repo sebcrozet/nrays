@@ -163,7 +163,8 @@ struct Properties {
     aa:         Option<(uint, Vec2<f64>)>,
     radius:     Option<(uint, f64)>,
     nsample:    Option<(uint, f64)>,
-    solid:      bool
+    solid:      bool,
+    flat:       bool,
 }
 
 impl Properties {
@@ -185,7 +186,8 @@ impl Properties {
             aa:         None,
             radius:     None,
             nsample:    None,
-            solid:      false
+            solid:      false,
+            flat:       false,
         }
     }
 }
@@ -268,6 +270,7 @@ fn parse(string: &str) -> (~[Light], ~[Arc<SceneNode>], ~[Camera]) {
                         &"cone"       => props.geom.push((l, parse_cone(l, words))),
                         &"obj"        => props.geom.push((l, parse_obj(l, words))),
                         &"solid"      => props.solid = true,
+                        &"flat"       => props.flat = true,
                         _             => {
                             println!("Warning: unknown line {} ignored: `{:s}'", l, line);
                         }
@@ -438,6 +441,7 @@ fn register_geometry(props:  Properties,
     let transform;
     let normals;
     let solid;
+    let flat;
     let refl_m;
     let refl_a;
     let alpha;
@@ -445,6 +449,7 @@ fn register_geometry(props:  Properties,
 
     {
         solid     = props.solid;
+        flat      = props.flat;
         let mname = props.material.as_ref().unwrap().n1_ref();
         special   = mname.as_slice() == "uvs" || mname.as_slice() == "normals";
         let (a, m)= mtllib.find(mname).unwrap_or_else(|| fail!("Attempted to use an unknown material: " + *mname)).clone();
@@ -520,7 +525,14 @@ fn register_geometry(props:  Properties,
                     let faces = o.mut_faces().unwrap();
                     let faces = Arc::new(faces.flat_map(|a| ~[a.x as uint, a.y as uint, a.z as uint]));
 
-                    let mesh = ~Mesh::new_with_margin(coords.clone(), faces, Some(uvs.clone()), Some(ns.clone()), 0.0);
+                    let mesh;
+                    
+                    if flat {
+                        mesh = ~Mesh::new_with_margin(coords.clone(), faces, Some(uvs.clone()), None, 0.0);
+                    }
+                    else {
+                        mesh = ~Mesh::new_with_margin(coords.clone(), faces, Some(uvs.clone()), Some(ns.clone()), 0.0);
+                    }
                     match mat {
                         Some(m) => {
                             let t = match m.diffuse_texture {
