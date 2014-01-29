@@ -78,6 +78,7 @@ impl Material for PhongMaterial {
         let mut res;
         let tex_color;
         let alpha;
+        let mut nb_active_lights = 0.0f32;
 
         if na::dim::<V>() == 3 && uvs.is_some() && self.texture.is_some() {
             let uvs     = uvs.as_ref().unwrap();
@@ -99,7 +100,8 @@ impl Material for PhongMaterial {
         }
 
         let tex_color = Vec3::new(tex_color.x, tex_color.y, tex_color.z);
-        res = self.ambiant_color * tex_color;
+        // res = self.ambiant_color * tex_color;
+        res = Vec3::new(0.0f32, 0.0, 0.0);
 
         // compute the contribution of each light
         for light in scene.lights().iter() {
@@ -129,11 +131,12 @@ impl Material for PhongMaterial {
                             let scoeff   = num::powf(scoeff.clone(), self.shininess);
                             let specular = self.specular_color * scoeff;
 
-                            acc = acc + light.color * filter * (diffuse + specular);
+                            acc = acc + light.color * filter * (diffuse);
                         }
                         else {
                             acc = acc + light.color * filter * diffuse;
                         }
+                        nb_active_lights = nb_active_lights + 1.0f32;
                     }
                 }
             });

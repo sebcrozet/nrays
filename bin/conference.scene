@@ -1,17 +1,19 @@
 camera
     output out.png
-    resolution 1024 1024
+    resolution 512 512
     eye  -125.0 125.0 0.0
     at   0.0 125.0 0.0
     fovy 89.0
 
 light
-    pos   -125.0 125.0 0.0
+    pos   10.0 10.0 0.0
     color 1.0 1.0 1.0
+    nsamples 500
+    radius 0.12
 
 geometry
     obj      media/conference/conference.obj media/conference
     pos      0.0 0.0 0.0
     angle    0.0 0.0 0.0
     material default
-    refl     0.0 0.0
+    refl     0.8 0.1

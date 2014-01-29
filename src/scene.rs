@@ -165,6 +165,7 @@ impl Scene {
         }
 
         for light in extra_lights.iter() {
+            println!("{} {} {}", light.color.x, light.color.y, light.color.z);
             self.lights.push(*light);
         }
         println!("Number of additional lights : {}.", self.lights.len());
@@ -357,7 +358,7 @@ impl Scene {
 
                 if alpha == 1.0 {
                     let color = Vec3::new(obj_color.x, obj_color.y, obj_color.z);
-                    lights.push(Light::new(pt, 0.0, 1, color));
+                    lights.push(Light::new(pt + inter.normal * 0.001, 0.0, 1, color));
                     color
                 }
                 else {
@@ -365,7 +366,7 @@ impl Scene {
                     let refr      = Vec3::new(refr.x, refr.y, refr.z);
 
                     let color = obj_color * alpha + refr * (1.0 - alpha);
-                    lights.push(Light::new(pt, 0.0, 1, color));
+                    lights.push(Light::new(pt + inter.normal * 0.001, 0.0, 1, color));
                     color
                 }
             }
