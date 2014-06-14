@@ -1,19 +1,19 @@
 use nalgebra::na;
 use ncollide::ray::Ray;
-use ncollide::math::{N, V};
+use ncollide::math::{Scalar, Vect};
 
 pub struct RayWithEnergy {
-    ray:    Ray,
-    refr:   N,
-    energy: f32
+    pub ray:    Ray,
+    pub refr:   Scalar,
+    pub energy: f32
 }
 
 impl RayWithEnergy {
-    pub fn new(orig: V, dir: V) -> RayWithEnergy {
+    pub fn new(orig: Vect, dir: Vect) -> RayWithEnergy {
         RayWithEnergy::new_with_energy(orig, dir, na::cast(1.0), 1.0)
     }
 
-    pub fn new_with_energy(orig: V, dir: V, refr: N, energy: f32) -> RayWithEnergy {
+    pub fn new_with_energy(orig: Vect, dir: Vect, refr: Scalar, energy: f32) -> RayWithEnergy {
         RayWithEnergy {
             ray:    Ray::new(orig, dir),
             refr:   refr,

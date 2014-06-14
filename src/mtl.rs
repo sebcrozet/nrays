@@ -1,33 +1,28 @@
 //! Simplistic mtl loader.
 
-use std::util;
+use std::mem;
 use std::io::fs::File;
-use std::io::Reader;
-use std::str;
+use std::io::{IoResult, Reader};
 use std::str::Words;
 use std::from_str::FromStr;
 use nalgebra::na::Vec3;
 
 fn error(line: uint, err: &str) -> ! {
-    fail!("At line " + line.to_str() + ": " + err)
+    fail!("At line {}: {}", line, err)
 }
 
 /// Parses a mtl file.
-pub fn parse_file(path: &Path) -> Option<~[MtlMaterial]> {
-    if !path.exists() {
-        None
-    }
-    else {
-        let s   = File::open(path).expect("Cannot open the file: " + path.as_str().unwrap()).read_to_end();
-        let obj = str::from_utf8_owned(s).unwrap();
-        Some(parse(obj))
+pub fn parse_file(path: &Path) -> IoResult<Vec<MtlMaterial>> {
+    match File::open(path) {
+        Ok(mut file) => file.read_to_str().map(|mtl| parse(mtl.as_slice())),
+        Err(e)       => Err(e)
     }
 }
 
 /// Parses a string representing a mtl file.
-pub fn parse(string: &str) -> ~[MtlMaterial] {
-    let mut res           = ~[];
-    let mut curr_material = MtlMaterial::new_default(~"");
+pub fn parse(string: &str) -> Vec<MtlMaterial> {
+    let mut res           = Vec::new();
+    let mut curr_material = MtlMaterial::new_default("".to_string());
 
     for (l, line) in string.lines_any().enumerate() {
         let mut words = line.words();
@@ -38,38 +33,39 @@ pub fn parse(string: &str) -> ~[MtlMaterial] {
             Some(w) => {
                 if w.len() != 0 && w[0] != ('#' as u8) {
                     let mut p = line.words().peekable();
-                    p.next();
+                    let     _ = p.next();
+
                     if p.peek().is_none() {
                         continue
                     }
 
                     match w {
                         // texture name
-                        &"newmtl"      => {
-                            let old = util::replace(&mut curr_material, MtlMaterial::new_default(parse_name(l, words)));
+                        "newmtl"      => {
+                            let old = mem::replace(&mut curr_material, MtlMaterial::new_default(parse_name(l, words)));
 
                             if old.name.len() != 0 {
                                 res.push(old);
                             }
                         },
                         // ambiant color
-                            &"Ka"          => curr_material.ambiant = parse_color(l, words),
+                            "Ka"          => curr_material.ambiant = parse_color(l, words),
                             // diffuse color
-                            &"Kd"          => curr_material.diffuse = parse_color(l, words),
+                            "Kd"          => curr_material.diffuse = parse_color(l, words),
                             // specular color
-                            &"Ks"          => curr_material.specular = parse_color(l, words),
+                            "Ks"          => curr_material.specular = parse_color(l, words),
                             // shininess
-                            &"Ns"          => curr_material.shininess = parse_scalar(l, words),
+                            "Ns"          => curr_material.shininess = parse_scalar(l, words),
                             // alpha
-                            &"d"           => curr_material.alpha = parse_scalar(l, words),
+                            "d"           => curr_material.alpha = parse_scalar(l, words),
                             // ambiant map
-                            &"map_Ka"      => curr_material.ambiant_texture = Some(parse_name(l, words)),
+                            "map_Ka"      => curr_material.ambiant_texture = Some(parse_name(l, words)),
                             // diffuse texture map
-                            &"map_Kd"      => curr_material.diffuse_texture = Some(parse_name(l, words)),
+                            "map_Kd"      => curr_material.diffuse_texture = Some(parse_name(l, words)),
                             // specular texture map
-                            &"map_Ks"      => curr_material.specular_texture = Some(parse_name(l, words)),
+                            "map_Ks"      => curr_material.specular_texture = Some(parse_name(l, words)),
                             // specular texture map
-                            &"map_d" | &"map_opacity" => curr_material.opacity_map = Some(parse_name(l, words)),
+                            "map_d" | "map_opacity" => curr_material.opacity_map = Some(parse_name(l, words)),
                             _     => {
                                 println!("Warning: unknown line {} ignored: `{:s}'", l, line);
                             }
@@ -86,8 +82,9 @@ pub fn parse(string: &str) -> ~[MtlMaterial] {
     res
 }
 
-fn parse_name<'a>(_: uint, mut ws: Words<'a>) -> ~str {
-    ws.to_owned_vec().connect(" ")
+fn parse_name<'a>(_: uint, mut ws: Words<'a>) -> String {
+    let res: Vec<&'a str> = ws.collect();
+    res.connect(" ")
 }
 
 fn parse_color<'a>(l: uint, mut ws: Words<'a>) -> Vec3<f32> {
@@ -99,9 +96,9 @@ fn parse_color<'a>(l: uint, mut ws: Words<'a>) -> Vec3<f32> {
     let y: Option<f32> = FromStr::from_str(sy);
     let z: Option<f32> = FromStr::from_str(sz);
 
-    let x = x.unwrap_or_else(|| error(l, "failed to parse `" + sx + "' as a f32."));
-    let y = y.unwrap_or_else(|| error(l, "failed to parse `" + sy + "' as a f32."));
-    let z = z.unwrap_or_else(|| error(l, "failed to parse `" + sz + "' as a f32."));
+    let x = x.unwrap_or_else(|| error(l, format!("failed to parse `{}' as a f32.", sx).as_slice()));
+    let y = y.unwrap_or_else(|| error(l, format!("failed to parse `{}' as a f32.", sy).as_slice()));
+    let z = z.unwrap_or_else(|| error(l, format!("failed to parse `{}' as a f32.", sz).as_slice()));
 
     Vec3::new(x, y, z)
 }
@@ -111,7 +108,7 @@ fn parse_scalar<'a>(l: uint, mut ws: Words<'a>) -> f32 {
 
     let x: Option<f32> = FromStr::from_str(sx);
 
-    let x = x.unwrap_or_else(|| error(l, "failed to parse `" + sx + "' as a f32."));
+    let x = x.unwrap_or_else(|| error(l, format!("failed to parse `{}' as a f32.", sx).as_slice()));
 
     x
 }
@@ -120,30 +117,30 @@ fn parse_scalar<'a>(l: uint, mut ws: Words<'a>) -> f32 {
 #[deriving(Clone)]
 pub struct MtlMaterial {
     /// Name of the material.
-    name:             ~str,
+    pub name:             String,
     /// Path to the ambiant texture.
-    ambiant_texture:  Option<~str>,
+    pub ambiant_texture:  Option<String>,
     /// Path to the diffuse texture.
-    diffuse_texture:  Option<~str>,
+    pub diffuse_texture:  Option<String>,
     /// Path to the specular texture.
-    specular_texture: Option<~str>,
+    pub specular_texture: Option<String>,
     /// Path to the opacity map.
-    opacity_map:      Option<~str>,
+    pub opacity_map:      Option<String>,
     /// The ambiant color.
-    ambiant:          Vec3<f32>,
+    pub ambiant:          Vec3<f32>,
     /// The diffuse color.
-    diffuse:          Vec3<f32>,
+    pub diffuse:          Vec3<f32>,
     /// The specular color.
-    specular:         Vec3<f32>,
+    pub specular:         Vec3<f32>,
     /// The shininess.
-    shininess:        f32,
+    pub shininess:        f32,
     /// Alpha blending.
-    alpha:            f32,
+    pub alpha:            f32,
 }
 
 impl MtlMaterial {
     /// Creates a new mtl material with a name and default values.
-    pub fn new_default(name: ~str) -> MtlMaterial {
+    pub fn new_default(name: String) -> MtlMaterial {
         MtlMaterial {
             name:             name,
             shininess:        60.0,
@@ -159,16 +156,16 @@ impl MtlMaterial {
     }
 
     /// Creates a new mtl material.
-    pub fn new(name:             ~str,
+    pub fn new(name:             String,
                shininess:        f32,
                alpha:            f32,
                ambiant:          Vec3<f32>,
                diffuse:          Vec3<f32>,
                specular:         Vec3<f32>,
-               ambiant_texture:  Option<~str>,
-               diffuse_texture:  Option<~str>,
-               specular_texture: Option<~str>,
-               opacity_map:      Option<~str>)
+               ambiant_texture:  Option<String>,
+               diffuse_texture:  Option<String>,
+               specular_texture: Option<String>,
+               opacity_map:      Option<String>)
                -> MtlMaterial {
         MtlMaterial {
             name:             name,

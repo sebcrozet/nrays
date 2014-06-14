@@ -1,8 +1,7 @@
 //! Data structure of a scene node geometry.
 
-use extra::arc::Arc;
+use std::sync::Arc;
 use std::num::Zero;
-use std::vec;
 use nalgebra::na::{Vec2, Vec3};
 use nalgebra::na;
 
@@ -15,20 +14,18 @@ pub type Face   = Vec3<Vertex>;
 pub enum StorageLocation<T> {
     SharedImmutable(Arc<T>),
     NotShared(T)
-    // FIXME: add a GPU-only storage location
-    // FIXME: add SharedMutable
 }
 
-impl<T: Clone + Send + Freeze> StorageLocation<T> {
+impl<T: Clone + Share + Send> StorageLocation<T> {
     pub fn unwrap(&self) -> T {
         match *self {
-            SharedImmutable(ref a) => a.get().clone(),
+            SharedImmutable(ref a) => a.deref().clone(),
             NotShared(ref t)       => t.clone()
         }
     }
 }
 
-impl<T: Send + Freeze + Clone> Clone for StorageLocation<T> {
+impl<T: Share + Send + Clone> Clone for StorageLocation<T> {
     fn clone(&self) -> StorageLocation<T> {
         match *self {
             SharedImmutable(ref t) => SharedImmutable(t.clone()),
@@ -38,7 +35,7 @@ impl<T: Send + Freeze + Clone> Clone for StorageLocation<T> {
 }
 
 
-impl<T: Send + Freeze> StorageLocation<T> {
+impl<T: Share + Send> StorageLocation<T> {
     pub fn new(t: T, shared: bool) -> StorageLocation<T> {
         if shared {
             SharedImmutable(Arc::new(t))
@@ -50,8 +47,8 @@ impl<T: Send + Freeze> StorageLocation<T> {
 
     pub fn get<'r>(&'r self) -> &'r T {
         match *self {
-            SharedImmutable(ref s) => s.get(),
-            NotShared(ref s)     => s
+            SharedImmutable(ref s) => s.deref(),
+            NotShared(ref s)       => s
         }
     }
 
@@ -63,11 +60,11 @@ impl<T: Send + Freeze> StorageLocation<T> {
     }
 }
 
-impl<T: Send + Freeze + Clone> StorageLocation<T> {
+impl<T: Share + Send + Clone> StorageLocation<T> {
     pub fn write_cow<'r>(&'r mut self, f: |&mut T| -> ()) {
         match *self {
             SharedImmutable(ref mut s) => {
-                let mut cpy = s.get().clone();
+                let mut cpy = s.deref().clone();
                 f(&mut cpy);
 
                 *s = Arc::new(cpy);
@@ -80,23 +77,23 @@ impl<T: Send + Freeze + Clone> StorageLocation<T> {
 /// A Mesh contains all geometric data of a mesh: vertex buffer, index buffer, normals and uvs.
 /// It also contains the GPU location of those buffers.
 pub struct Mesh {
-    priv coords:  StorageLocation<~[Coord]>,
-    priv faces:   StorageLocation<~[Face]>,
-    priv normals: StorageLocation<~[Normal]>,
-    priv uvs:     StorageLocation<~[UV]>,
+    coords:  StorageLocation<Vec<Coord>>,
+    faces:   StorageLocation<Vec<Face>>,
+    normals: StorageLocation<Vec<Normal>>,
+    uvs:     StorageLocation<Vec<UV>>,
 }
 
 impl Mesh {
     /// Creates a new mesh. Arguments set to `None` are automatically computed.
-    pub fn new(coords:          StorageLocation<~[Coord]>,
-               faces:           StorageLocation<~[Face]>,
-               normals:         Option<StorageLocation<~[Normal]>>,
-               uvs:             Option<StorageLocation<~[UV]>>)
+    pub fn new(coords:          StorageLocation<Vec<Coord>>,
+               faces:           StorageLocation<Vec<Face>>,
+               normals:         Option<StorageLocation<Vec<Normal>>>,
+               uvs:             Option<StorageLocation<Vec<UV>>>)
                -> Mesh {
         let normals = match normals {
             Some(ns) => ns,
             None     => {
-                let normals = compute_normals_array(*coords.get(), *faces.get());
+                let normals = compute_normals_array(coords.get().as_slice(), faces.get().as_slice());
                 StorageLocation::new(normals, coords.is_shared())
             }
         };
@@ -104,7 +101,7 @@ impl Mesh {
         let uvs = match uvs {
             Some(us) => us,
             None     => {
-                let uvs = vec::from_elem(coords.get().len(), na::zero());
+                let uvs = Vec::from_elem(coords.get().len(), na::zero());
                 StorageLocation::new(uvs, coords.is_shared())
             }
         };
@@ -124,56 +121,51 @@ impl Mesh {
 
     /// Recompute this mesh normals.
     pub fn recompute_normals(&mut self) {
+        fail!("Review that.")
+        /*
         self.normals.write_cow(
-            |normals| compute_normals(*self.coords.get(), *self.faces.get(), normals)
+            |normals| compute_normals(self.coords.get().as_slice(), self.faces.get().as_slice(), normals)
         )
+        */
     }
 
     /// This mesh faces.
     pub fn faces<'r>(&'r self) -> &'r [Face] {
-        let res: &'r [Face] = *self.faces.get();
-
-        res
+        self.faces.get().as_slice()
     }
 
     /// This mesh faces.
-    pub fn mut_faces<'r>(&'r mut self) -> &'r mut StorageLocation<~[Face]> {
+    pub fn mut_faces<'r>(&'r mut self) -> &'r mut StorageLocation<Vec<Face>> {
         &'r mut self.faces
     }
 
     /// This mesh normals.
     pub fn normals<'r>(&'r self) -> &'r [Normal] {
-        let res: &'r [Normal] = *self.normals.get();
-
-        res
+        self.normals.get().as_slice()
     }
 
     /// This mesh normals.
-    pub fn mut_normals<'r>(&'r mut self) -> &'r mut StorageLocation<~[Normal]> {
+    pub fn mut_normals<'r>(&'r mut self) -> &'r mut StorageLocation<Vec<Normal>> {
         &'r mut self.normals
     }
 
     /// This mesh vertices coordinates.
     pub fn coords<'r>(&'r self) -> &'r [Coord] {
-        let res: &'r [Coord] = *self.coords.get();
-
-        res
+        self.coords.get().as_slice()
     }
 
     /// This mesh vertices coordinates.
-    pub fn mut_coords<'r>(&'r mut self) -> &'r mut StorageLocation<~[Coord]> {
+    pub fn mut_coords<'r>(&'r mut self) -> &'r mut StorageLocation<Vec<Coord>> {
         &'r mut self.coords
     }
 
     /// This mesh texture coordinates.
     pub fn uvs<'r>(&'r self) -> &'r [UV] {
-        let res: &'r [UV] = *self.uvs.get();
-
-        res
+        self.uvs.get().as_slice()
     }
 
     /// This mesh texture coordinates.
-    pub fn mut_uvs<'r>(&'r mut self) -> &'r mut StorageLocation<~[UV]> {
+    pub fn mut_uvs<'r>(&'r mut self) -> &'r mut StorageLocation<Vec<UV>> {
         &'r mut self.uvs
     }
 }
@@ -181,8 +173,8 @@ impl Mesh {
 /// Comutes normals from a set of faces.
 pub fn compute_normals_array(coordinates: &[Coord],
                              faces:       &[Face])
-                             -> ~[Normal] {
-    let mut res = ~[];
+                             -> Vec<Normal> {
+    let mut res = Vec::new();
 
     compute_normals(coordinates, faces, &mut res);
 
@@ -192,8 +184,8 @@ pub fn compute_normals_array(coordinates: &[Coord],
 /// Comutes normals from a set of faces.
 pub fn compute_normals(coordinates: &[Coord],
                        faces:       &[Face],
-                       normals:     &mut ~[Normal]) {
-    let mut divisor = vec::from_elem(coordinates.len(), 0f32);
+                       normals:     &mut Vec<Normal>) {
+    let mut divisor = Vec::from_elem(coordinates.len(), 0f32);
 
     // Shrink the output buffer if it is too big.
     if normals.len() > coordinates.len() {
@@ -210,8 +202,8 @@ pub fn compute_normals(coordinates: &[Coord],
 
     // Accumulate normals ...
     for f in faces.iter() {
-        let edge1  = coordinates[f.y] - coordinates[f.x];
-        let edge2  = coordinates[f.z] - coordinates[f.x];
+        let edge1  = coordinates[f.y as uint] - coordinates[f.x as uint];
+        let edge2  = coordinates[f.z as uint] - coordinates[f.x as uint];
         let cross  = na::cross(&edge1, &edge2);
         let normal;
 
@@ -222,13 +214,15 @@ pub fn compute_normals(coordinates: &[Coord],
             normal = cross
         }
 
-        normals[f.x] = normals[f.x] + normal;
-        normals[f.y] = normals[f.y] + normal;
-        normals[f.z] = normals[f.z] + normal;
+        let normals = normals.as_mut_slice();
+        let divisor = divisor.as_mut_slice();
+        normals[f.x as uint] = normals[f.x as uint] + normal;
+        normals[f.y as uint] = normals[f.y as uint] + normal;
+        normals[f.z as uint] = normals[f.z as uint] + normal;
 
-        divisor[f.x] = divisor[f.x] + 1.0;
-        divisor[f.y] = divisor[f.y] + 1.0;
-        divisor[f.z] = divisor[f.z] + 1.0;
+        divisor[f.x as uint] = divisor[f.x as uint] + 1.0;
+        divisor[f.y as uint] = divisor[f.y as uint] + 1.0;
+        divisor[f.z as uint] = divisor[f.z as uint] + 1.0;
     }
 
     // ... and compute the mean

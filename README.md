@@ -2,7 +2,7 @@ nrays
 =====
 
 **nrays** is an attempt to make a 3 and 4 dimensional ray tracer in Rust.
-It uses the [ncollide](https://github.com/sebcrozet/ncollide) library to cast rays.
+It uses the [ncollide](ncollide.org) library to cast rays.
 
 ## 3d ray tracing
 The current implementation handles phong lighting and reflexions. Nothing fancy here. It supports

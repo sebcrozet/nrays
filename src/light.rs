@@ -1,6 +1,6 @@
 use std::rand;
 use nalgebra::na::Vec3;
-use ncollide::math::{N, V};
+use ncollide::math::{Scalar, Vect};
 
 #[cfg(dim3)]
 use nalgebra::na::Indexable;
@@ -8,14 +8,14 @@ use nalgebra::na::Indexable;
 use nalgebra::na;
 
 pub struct Light {
-    pos:       V,
-    radius:    N,
-    racsample: uint,
-    color:     Vec3<f32>
+    pub pos:       Vect,
+    pub radius:    Scalar,
+    pub racsample: uint,
+    pub color:     Vec3<f32>
 }
 
 impl Light {
-    pub fn new(pos: V, radius: N, nsample: uint, color: Vec3<f32>) -> Light {
+    pub fn new(pos: Vect, radius: Scalar, nsample: uint, color: Vec3<f32>) -> Light {
         Light {
             pos:     pos,
             radius:  radius,
@@ -25,17 +25,17 @@ impl Light {
     }
 
     #[cfg(dim3)]
-    pub fn sample<T>(&self, f: |V| -> T) {
+    pub fn sample<T>(&self, f: |Vect| -> T) {
         for i in range(0u, self.racsample) {
             for j in range(0u, self.racsample) {
-                let iracsample = na::one::<N>() / na::cast(self.racsample);
-                let parttheta  = iracsample * Real::pi();
-                let partphi    = iracsample * Real::two_pi();
+                let iracsample = na::one::<Scalar>() / na::cast(self.racsample);
+                let parttheta  = iracsample * Float::pi();
+                let partphi    = iracsample * Float::two_pi();
 
-                let phi   = (rand::random::<N>() + na::cast(i)) * partphi;
-                let theta = (rand::random::<N>() + na::cast(j)) * parttheta;
+                let phi   = (rand::random::<Scalar>() + na::cast(i)) * partphi;
+                let theta = (rand::random::<Scalar>() + na::cast(j)) * parttheta;
 
-                let mut v = na::zero::<V>();
+                let mut v = na::zero::<Vect>();
 
                 let cphi   = phi.cos();
                 let sphi   = phi.sin();
@@ -52,9 +52,9 @@ impl Light {
     }
 
     #[cfg(not(dim3))]
-    pub fn sample<T>(&self, f: |V| -> T) {
+    pub fn sample<T>(&self, f: |Vect| -> T) {
         for _ in range(0u, self.racsample * self.racsample) {
-            f(rand::random::<V>() * self.radius + self.pos);
+            f(rand::random::<Vect>() * self.radius + self.pos);
         }
     }
 }

@@ -1,8 +1,8 @@
-use extra::arc::Arc;
+use std::sync::Arc;
 use nalgebra::na::Transform;
 use ncollide::ray::{RayCast, Ray, RayIntersection};
 use ncollide::bounding_volume::{HasAABB, AABB};
-use ncollide::math::{N, M};
+use ncollide::math::{Scalar, Matrix};
 use material::Material;
 use texture2d::Texture2d;
 
@@ -10,27 +10,27 @@ use texture2d::Texture2d;
 use nalgebra::na;
 
 pub struct SceneNode {
-    refl_mix:        f32,
-    refl_atenuation: f32,
-    refr_coeff:      N,
-    alpha:           f32,
-    solid:           bool,
-    material:        Arc<~Material:Freeze+Send>,
-    transform:       M,
-    geometry:        ~RayCast:Freeze+Send,
-    aabb:            AABB,
-    nmap:            Option<Texture2d>
+    pub refl_mix:        f32,
+    pub refl_atenuation: f32,
+    pub refr_coeff:      Scalar,
+    pub alpha:           f32,
+    pub solid:           bool,
+    pub material:        Arc<Box<Material:Share+Send>>,
+    pub transform:       Matrix,
+    pub geometry:        Box<RayCast:Share+Send>,
+    pub aabb:            AABB,
+    pub nmap:            Option<Texture2d>
 }
 
 impl SceneNode {
-    pub fn new<G: 'static + Send + Freeze + RayCast + HasAABB>(
-               material:        Arc<~Material:Freeze+Send>,
+    pub fn new<G: 'static + Send + Share + RayCast + HasAABB>(
+               material:        Arc<Box<Material:Share+Send>>,
                refl_mix:        f32,
                refl_atenuation: f32,
                alpha:           f32,
-               refr_coeff:      N,
-               transform:       M,
-               geometry:        ~G,
+               refr_coeff:      Scalar,
+               transform:       Matrix,
+               geometry:        Box<G>,
                nmap:            Option<Texture2d>,
                solid:           bool)
                -> SceneNode {
@@ -41,7 +41,7 @@ impl SceneNode {
             refr_coeff:      refr_coeff,
             material:        material,
             aabb:            geometry.aabb(&transform),
-            geometry:        geometry as ~RayCast:Freeze+Send,
+            geometry:        geometry as Box<RayCast:Share+Send>,
             transform:       transform,
             nmap:            nmap,
             solid:           solid

@@ -1,18 +1,19 @@
-use std::hashmap::HashMap;
-use std::local_data;
-use extra::arc::Arc;
+use std::cell::RefCell;
+use std::collections::HashMap;
+use std::sync::Arc;
 use stb_image::image::ImageU8;
 use stb_image::image;
-use nalgebra::na::{Vec4, Vec3, Vec2};
-use ncollide::math::N;
+use nalgebra::na::{Vec4, Vec2};
+use nalgebra::na;
+use ncollide::math::Scalar;
 
 pub struct ImageData {
-    pixels: ~[Vec4<f32>],
+    pixels: Vec<Vec4<f32>>,
     dims:   Vec2<uint>
 }
 
 impl ImageData {
-    pub fn new(pixels: ~[Vec4<f32>], dims: Vec2<uint>) -> ImageData {
+    pub fn new(pixels: Vec<Vec4<f32>>, dims: Vec2<uint>) -> ImageData {
         assert!(pixels.len() == dims.x * dims.y);
         assert!(dims.x >= 1);
         assert!(dims.y >= 1);
@@ -24,16 +25,16 @@ impl ImageData {
     }
 }
 
-local_data_key!(KEY_TEXTURE_MANAGER: TexturesManager)
+local_data_key!(KEY_TEXTURE_MANAGER: RefCell<TextureManager>)
 
-struct TexturesManager {
-    loaded_opaque:      HashMap<~str, Arc<ImageData>>,
-    loaded_transparent: HashMap<~str, Arc<ImageData>>
+struct TextureManager {
+    loaded_opaque:      HashMap<String, Arc<ImageData>>,
+    loaded_transparent: HashMap<String, Arc<ImageData>>
 }
 
-impl TexturesManager {
-    pub fn new() -> TexturesManager {
-        TexturesManager {
+impl TextureManager {
+    pub fn new() -> TextureManager {
+        TextureManager {
             loaded_opaque:      HashMap::new(),
             loaded_transparent: HashMap::new()
         }
@@ -41,12 +42,12 @@ impl TexturesManager {
 }
 
 /// Gets the texture manager.
-pub fn get_texture_manager<T>(f: |&mut TexturesManager| -> T) -> T {
-    if local_data::get(KEY_TEXTURE_MANAGER, |tm| tm.is_none()) {
-        local_data::set(KEY_TEXTURE_MANAGER, TexturesManager::new())
+fn get_texture_manager<T>(f: |&mut TextureManager| -> T) -> T {
+    if KEY_TEXTURE_MANAGER.get().is_none() {
+        let _ = KEY_TEXTURE_MANAGER.replace(Some(RefCell::new(TextureManager::new())));
     }
 
-    local_data::get_mut(KEY_TEXTURE_MANAGER, |tm| f(tm.unwrap()))
+    f(KEY_TEXTURE_MANAGER.get().unwrap().borrow_mut().deref_mut())
 }
 
 // FIXME: move this to its own file
@@ -86,24 +87,24 @@ impl Texture2d {
                 let found;
 
                 if opacity {
-                   found = tm.loaded_transparent.find(&path.as_str().unwrap().to_owned());
+                   found = tm.loaded_transparent.find(&path.as_str().unwrap().to_string());
                 }
                 else {
-                   found = tm.loaded_opaque.find(&path.as_str().unwrap().to_owned());
+                   found = tm.loaded_opaque.find(&path.as_str().unwrap().to_string());
                 }
 
                 res = match found {
                     Some(data) => Some(data.clone()),
                     None => {
-                        match image::load(path.as_str().unwrap().to_owned()) {
+                        match image::load(&Path::new(path.as_str().unwrap().to_string())) {
                             ImageU8(mut image) => {
-                                let mut data = ~[];
+                                let mut data = Vec::new();
 
                                 // Flip the y axis
                                 let elt_per_row = image.width * image.depth;
                                 for j in range(0u, image.height / 2) {
                                     for i in range(0u, elt_per_row) {
-                                        image.data.swap(
+                                        image.data.as_mut_slice().swap(
                                             (image.height - j - 1) * elt_per_row + i,
                                             j * elt_per_row + i)
                                     }
@@ -125,7 +126,7 @@ impl Texture2d {
                                     Vec2::new(image.width as uint, image.height as uint))))
                                 }
                                 else if image.depth == 2 {
-                                    for p in image.data.chunks(2) {
+                                    for p in image.data.as_slice().chunks(2) {
                                         let r = p[0] as f32 / 255.0;
                                         let g = p[1] as f32 / 255.0;
 
@@ -141,7 +142,7 @@ impl Texture2d {
                                     Vec2::new(image.width as uint, image.height as uint))))
                                 }
                                 else if image.depth == 3 {
-                                    for p in image.data.chunks(3) {
+                                    for p in image.data.as_slice().chunks(3) {
                                         let r = p[0] as f32 / 255.0;
                                         let g = p[1] as f32 / 255.0;
                                         let b = p[2] as f32 / 255.0;
@@ -158,7 +159,7 @@ impl Texture2d {
                                     Vec2::new(image.width as uint, image.height as uint))))
                                 }
                                 else if image.depth == 4 {
-                                    for p in image.data.chunks(4) {
+                                    for p in image.data.as_slice().chunks(4) {
                                         let r = p[0] as f32 / 255.0;
                                         let g = p[1] as f32 / 255.0;
                                         let b = p[2] as f32 / 255.0;
@@ -190,10 +191,10 @@ impl Texture2d {
             let data = res.clone();
             data.map(|data| {
                 if opacity {
-                    tm.loaded_transparent.insert(path.as_str().unwrap().to_owned(), data)
+                    tm.loaded_transparent.insert(path.as_str().unwrap().to_string(), data)
                 }
                 else {
-                    tm.loaded_opaque.insert(path.as_str().unwrap().to_owned(), data)
+                    tm.loaded_opaque.insert(path.as_str().unwrap().to_string(), data)
                 }
             });
 
@@ -204,19 +205,17 @@ impl Texture2d {
     }
 
     pub fn at<'a>(&'a self, x: uint, y: uint) -> &'a Vec4<f32> {
-        let res = &'a self.data.get().pixels[y * self.data.get().dims.x + x];
-
-        res
+        self.data.pixels.get(y * self.data.dims.x + x)
     }
 
-    pub fn sample(&self, coords: &Vec3<N>) -> Vec4<f32> {
+    pub fn sample(&self, coords: &Vec2<Scalar>) -> Vec4<f32> {
         let mut ux: f32 = NumCast::from(coords.x).expect("Conversion of sampling coordinates failed.");
         let mut uy: f32 = NumCast::from(coords.y).expect("Conversion of sampling coordinates failed.");
 
         match self.overflow {
             ClampToEdges => {
-                ux = ux.clamp(&0.0, &1.0);
-                uy = uy.clamp(&0.0, &1.0);
+                ux = na::clamp(ux, 0.0, 1.0);
+                uy = na::clamp(uy, 0.0, 1.0);
             }
             Wrap => {
                 ux = ux % 1.0;
@@ -227,8 +226,8 @@ impl Texture2d {
             }
         }
 
-        ux = ux * ((self.data.get().dims.x - 1) as f32);
-        uy = uy * ((self.data.get().dims.y - 1) as f32);
+        ux = ux * ((self.data.dims.x - 1) as f32);
+        uy = uy * ((self.data.dims.y - 1) as f32);
 
         match self.interpol {
             Nearest => {

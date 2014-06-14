@@ -14,7 +14,7 @@ all:
 	rustc src/lib4d.rs -L$(stb_image_lib_path) -L$(png_lib_path) -L$(nalgebra_lib_path) -L$(ncollide_lib_path) --cfg dim4 --out-dir $(nrays_lib_path) --opt-level 3
 
 deps:
-	cd lib/rust-png; ./configure
+	cd lib/rust-png; ./configure || true
 	make clean -C lib/rust-png
 	make -C lib/rust-png
 	cd lib/rust-stb-image; ./configure
@@ -22,7 +22,8 @@ deps:
 	make -C lib/rust-stb-image
 	make -C ./lib/nalgebra
 	make -C ./lib/ncollide deps
-	make -C ./lib/ncollide
+	make -C ./lib/ncollide 3df64
+	make -C ./lib/ncollide 4df64
 
 render:
 	cd bin; ./loader_3d balls.scene; mv out.png balls.png
