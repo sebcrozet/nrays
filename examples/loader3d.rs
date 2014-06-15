@@ -510,7 +510,7 @@ fn register_geometry(props:  Properties,
             let os      = obj::parse_file(&Path::new(objpath), &mtlpath, "").unwrap();
 
             if os.len() > 0 {
-                let coords: Arc<Vec<Vec3<f64>>> = Arc::new(os.get(0).ref1().coords().iter().map(|a| Vec3::new(a.x as f64, a.y as f64, a.z as f64) / 4.0).collect());
+                let coords: Arc<Vec<Vec3<f64>>> = Arc::new(os.get(0).ref1().coords().iter().map(|a| Vec3::new(a.x as f64, a.y as f64, a.z as f64) / 4.0).collect()); // XXX: remove this arbitrary division by 4.0!
                 let uvs: Arc<Vec<Vec2<f64>>>    = Arc::new(os.get(0).ref1().uvs().iter().flat_map(|a| vec!(Vec2::new(a.x as f64, a.y as f64)).move_iter()).collect());
                 let ns: Arc<Vec<Vec3<f64>>> = Arc::new(os.get(0).ref1().normals().iter().map(|a| Vec3::new(a.x as f64, a.y as f64, a.z as f64)).collect());
 
