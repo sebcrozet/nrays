@@ -54,7 +54,7 @@ fn main() {
         None,
         None,
         60.0
-    ) as Box<Material:Share+Send>);
+    ) as Box<Material + Share + Send>);
 
     let transform: Iso4<f64> = na::one();
 

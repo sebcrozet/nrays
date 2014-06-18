@@ -219,10 +219,10 @@ fn parse(string: &str) -> (Vec<Light>, Vec<Arc<SceneNode>>, Vec<Camera>) {
             None,
             None,
             100.0
-        ) as Box<Material:Send+Share>);
+        ) as Box<Material + Send + Share>);
 
-        mtllib.insert("normals".to_string(), (1.0, Arc::new(box NormalMaterial::new() as Box<Material:Send+Share>)));
-        mtllib.insert("uvs".to_string(), (1.0, Arc::new(box UVMaterial::new() as Box<Material:Send+Share>)));
+        mtllib.insert("normals".to_string(), (1.0, Arc::new(box NormalMaterial::new() as Box<Material + Send + Share>)));
+        mtllib.insert("uvs".to_string(), (1.0, Arc::new(box UVMaterial::new() as Box<Material + Send + Share>)));
         mtllib.insert("default".to_string(), (1.0, white));
 
         match tag {
@@ -287,7 +287,7 @@ fn parse(string: &str) -> (Vec<Light>, Vec<Arc<SceneNode>>, Vec<Camera>) {
 
 fn register(mode:    &Mode,
             props:   Properties,
-            mtllib:  &mut HashMap<String, (f32, Arc<Box<Material:Send+Share>>)>,
+            mtllib:  &mut HashMap<String, (f32, Arc<Box<Material + Send + Share>>)>,
             lights:  &mut Vec<Light>,
             nodes:   &mut Vec<Arc<SceneNode>>,
             cameras: &mut Vec<Camera>) {
@@ -397,7 +397,7 @@ fn register_light(props: Properties, lights: &mut Vec<Light>) {
     lights.push(light);
 }
 
-fn register_mtllib(path: &str, mtllib: &mut HashMap<String, (f32, Arc<Box<Material:Send+Share>>)>) {
+fn register_mtllib(path: &str, mtllib: &mut HashMap<String, (f32, Arc<Box<Material + Send + Share>>)>) {
     let materials = mtl::parse_file(&Path::new(path)).unwrap(); // expect(format!("Failed to parse the mtl file: {}", path));
 
     for m in materials.move_iter() {
@@ -414,14 +414,14 @@ fn register_mtllib(path: &str, mtllib: &mut HashMap<String, (f32, Arc<Box<Materi
             t,
             a,
             m.shininess
-            ) as Box<Material:Send+Share>;
+            ) as Box<Material + Send + Share>;
 
         mtllib.insert(m.name, (alpha, Arc::new(color)));
     }
 }
 
 fn register_geometry(props:  Properties,
-                     mtllib: &mut HashMap<String, (f32, Arc<Box<Material:Send+Share>>)>,
+                     mtllib: &mut HashMap<String, (f32, Arc<Box<Material + Send + Share>>)>,
                      nodes:  &mut Vec<Arc<SceneNode>>) {
     warn_if_some(&props.eye);
     warn_if_some(&props.at);
@@ -480,10 +480,10 @@ fn register_geometry(props:  Properties,
 
         for &(ref l, ref g) in props.geom.iter() {
             match *g {
-                Ball(ref r) => geoms.push(box Ball::new(*r) as Box<ImplicitGeom:Send+Share>),
-                Box(ref rs) => geoms.push(box Cuboid::new_with_margin(*rs, 0.0) as Box<ImplicitGeom:Send+Share>),
-                Cylinder(ref h, ref r) => geoms.push(box Cylinder::new_with_margin(*h, *r, 0.0) as Box<ImplicitGeom:Send+Share>),
-                Cone(ref h, ref r) => geoms.push(box Cone::new_with_margin(*h, *r, 0.0) as Box<ImplicitGeom:Send+Share>),
+                Ball(ref r) => geoms.push(box Ball::new(*r) as Box<ImplicitGeom + Send + Share>),
+                Box(ref rs) => geoms.push(box Cuboid::new_with_margin(*rs, 0.0) as Box<ImplicitGeom + Send + Share>),
+                Cylinder(ref h, ref r) => geoms.push(box Cylinder::new_with_margin(*h, *r, 0.0) as Box<ImplicitGeom + Send + Share>),
+                Cone(ref h, ref r) => geoms.push(box Cone::new_with_margin(*h, *r, 0.0) as Box<ImplicitGeom + Send + Share>),
                 _ => println!("Warning: unsuported geometry on a minkosky sum at line {}.", *l)
             }
         }
@@ -571,7 +571,7 @@ fn register_geometry(props:  Properties,
                                 t,
                                 a,
                                 m.shininess
-                                ) as Box<Material:Send+Share>);
+                                ) as Box<Material + Send + Share>);
 
                             nodes.push(Arc::new(SceneNode::new(if special { material.clone() } else { color }, refl_m, refl_a, alpha, refr_c, transform, mesh, None, solid)));
                         },
@@ -669,11 +669,11 @@ trait ImplicitGeom : Implicit<Vect, Matrix> + Geom { }
 impl<T: Implicit<Vect, Matrix> + Geom> ImplicitGeom for T { }
 
 struct MinkowksiSum {
-    geoms: Vec<Box<ImplicitGeom:Share+Send>>
+    geoms: Vec<Box<ImplicitGeom + Share + Send>>
 }
 
 impl MinkowksiSum {
-    pub fn new(geoms: Vec<Box<ImplicitGeom:Share+Send>>) -> MinkowksiSum {
+    pub fn new(geoms: Vec<Box<ImplicitGeom + Share + Send>>) -> MinkowksiSum {
         MinkowksiSum {
             geoms: geoms
         }

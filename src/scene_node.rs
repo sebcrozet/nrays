@@ -15,16 +15,16 @@ pub struct SceneNode {
     pub refr_coeff:      Scalar,
     pub alpha:           f32,
     pub solid:           bool,
-    pub material:        Arc<Box<Material:Share+Send>>,
+    pub material:        Arc<Box<Material + Share + Send>>,
     pub transform:       Matrix,
-    pub geometry:        Box<RayCast:Share+Send>,
+    pub geometry:        Box<RayCast + Share + Send>,
     pub aabb:            AABB,
     pub nmap:            Option<Texture2d>
 }
 
 impl SceneNode {
     pub fn new<G: 'static + Send + Share + RayCast + HasAABB>(
-               material:        Arc<Box<Material:Share+Send>>,
+               material:        Arc<Box<Material + Share + Send>>,
                refl_mix:        f32,
                refl_atenuation: f32,
                alpha:           f32,
@@ -41,7 +41,7 @@ impl SceneNode {
             refr_coeff:      refr_coeff,
             material:        material,
             aabb:            geometry.aabb(&transform),
-            geometry:        geometry as Box<RayCast:Share+Send>,
+            geometry:        geometry as Box<RayCast + Share + Send>,
             transform:       transform,
             nmap:            nmap,
             solid:           solid
