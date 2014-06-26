@@ -105,7 +105,7 @@ impl Material for PhongMaterial {
             let mut acc = Vec3::new(0.0f32, 0.0, 0.0);
             light.sample(|pos| {
                 let mut ldir = pos - *point;
-                let     dist = ldir.normalize() - na::cast(0.001);
+                let     dist = ldir.normalize() - na::cast(0.001f64);
 
                 match scene.intersects_ray(&Ray::new(point + ldir * na::cast::<f32, Scalar>(0.001), ldir.clone()), dist) {
                     None         => { },

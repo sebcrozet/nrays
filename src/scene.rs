@@ -282,19 +282,19 @@ impl Scene {
             let n1;
             let n2;
 
-            if ray.refr == na::cast(1.0) {
-                n1 = na::cast(1.0);
+            if ray.refr == na::cast(1.0f64) {
+                n1 = na::cast(1.0f64);
                 n2 = coeff;
             }
             else {
                 n1 = coeff;
-                n2 = na::cast(1.0);
+                n2 = na::cast(1.0f64);
             }
 
             let dir_along_normal = normal * na::dot(&ray.ray.dir, normal);
             let tangent = ray.ray.dir - dir_along_normal;
             let new_dir = na::normalize(&(dir_along_normal + tangent * (n2 / n1)));
-            let new_pt  = pt + new_dir * 0.001;
+            let new_pt  = pt + new_dir * 0.001f64;
 
             self.trace(&RayWithEnergy::new_with_energy(new_pt, new_dir, n2, ray.energy))
         }
