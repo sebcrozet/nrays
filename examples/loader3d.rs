@@ -1,5 +1,3 @@
-#![crate_id = "loader_3d"]
-#![crate_type = "bin"]
 #![warn(non_camel_case_types)]
 #![feature(managed_boxes)]
 #![feature(globs)]
@@ -22,7 +20,7 @@ use std::sync::Arc;
 use nalgebra::na::{Vec2, Vec3, Iso3};
 use nalgebra::na;
 use ncollide::bounding_volume::{AABB, HasAABB, implicit_shape_aabb};
-use ncollide::geom::{Plane, Ball, Cone, Cylinder, Cuboid, Mesh};
+use ncollide::geom::{Plane, Ball, Cone, Cylinder, Capsule, Cuboid, Mesh};
 use ncollide::implicit::{Implicit, HasMargin};
 use ncollide::ray::{Ray, RayCast, RayIntersection, implicit_toi_and_normal_with_ray};
 use ncollide::math::{Scalar, Vect, Matrix};
@@ -41,7 +39,7 @@ use nrays::obj;
 use nrays::mtl;
 
 #[start]
-fn start(argc: int, argv: **u8) -> int {
+fn start(argc: int, argv: *const *const u8) -> int {
     native::start(argc, argv, proc() {
         main();
     })
@@ -65,14 +63,13 @@ fn main() {
     let descr = str::from_utf8_owned(s).unwrap();
 
     let (lights, nodes, cameras) = parse(descr.as_slice());
-    let nnodes  = nodes.len();
-    let nlights = lights.len();
-    let ncams   = cameras.len();
-    let scene   = Arc::new(Scene::new(nodes, lights));
+    let nnodes    = nodes.len();
+    let nlights   = lights.len();
+    let ncams     = cameras.len();
+    let scene = Arc::new(Scene::new(nodes, lights, na::one()));
     println!("Scene loaded. {} lights, {} objects, {} cameras.", nlights, nnodes, ncams);
 
     for c in cameras.move_iter() {
-
         // FIXME: new_perspective is _not_ accessible as a free function.
         let perspective = na::perspective3d(
             c.resolution.x,
@@ -116,13 +113,15 @@ enum Mode {
 enum Geometry {
     Ball(f64),
     Plane(Vec3<f64>),
-    Box(Vec3<f64>),
+    Cuboid(Vec3<f64>),
     Cylinder(f64, f64),
+    Capsule(f64, f64),
     Cone(f64, f64),
     Obj(String, String),
 }
 
 struct Camera {
+    background: Vec3<f32>,
     eye:        Vec3<f64>,
     at:         Vec3<f64>,
     fovy:       f64,
@@ -132,10 +131,11 @@ struct Camera {
 }
 
 impl Camera {
-    pub fn new(eye: Vec3<f64>, at: Vec3<f64>, fovy: f64, resolution: Vec2<f64>, aa: Vec2<f64>, output: String) -> Camera {
+    pub fn new(background: Vec3<f32>, eye: Vec3<f64>, at: Vec3<f64>, fovy: f64, resolution: Vec2<f64>, aa: Vec2<f64>, output: String) -> Camera {
         assert!(aa.x >= 1.0, "The number of ray per pixel must be at least 1.0");
 
         Camera {
+            background: background,
             eye:        eye,
             at:         at,
             fovy:       fovy,
@@ -228,7 +228,7 @@ fn parse(string: &str) -> (Vec<Light>, Vec<Arc<SceneNode>>, Vec<Camera>) {
         match tag {
             None    => { },
             Some(w) => {
-                if w.len() != 0 && w[0] != ('#' as u8) {
+                if w.len() != 0 && w.as_bytes()[0] != ('#' as u8) {
                     match w {
                         // top-level commands
                         "mtllib"   => register_mtllib(parse_name(l, words).as_slice(), &mut mtllib),
@@ -267,6 +267,7 @@ fn parse(string: &str) -> (Vec<Light>, Vec<Arc<SceneNode>>, Vec<Camera>) {
                         "plane"      => props.geom.push((l, parse_plane(l, words))),
                         "box"        => props.geom.push((l, parse_box(l, words))),
                         "cylinder"   => props.geom.push((l, parse_cylinder(l, words))),
+                        "capsule"    => props.geom.push((l, parse_capsule(l, words))),
                         "cone"       => props.geom.push((l, parse_cone(l, words))),
                         "obj"        => props.geom.push((l, parse_obj(l, words))),
                         "solid"      => props.solid = true,
@@ -347,7 +348,6 @@ fn register_camera(props: Properties, cameras: &mut Vec<Camera>) {
     warn_if_some(&props.pos);
     warn_if_some(&props.angle);
     warn_if_some(&props.material);
-    warn_if_some(&props.color);
     warn_if_some(&props.refl);
     warn_if_some(&props.refr);
     warn_if_some(&props.radius);
@@ -368,8 +368,9 @@ fn register_camera(props: Properties, cameras: &mut Vec<Camera>) {
     let fov  = props.fovy.unwrap().val1();
     let res  = props.resolution.unwrap().val1();
     let name = props.output.unwrap().val1();
+    let background = props.color.unwrap_or((l, na::zero()));
 
-    cameras.push(Camera::new(eye, at, fov, res, aa.val1(), name));
+    cameras.push(Camera::new(na::cast(background.val1()), eye, at, fov, res, aa.val1(), name));
 }
 
 fn register_light(props: Properties, lights: &mut Vec<Light>) {
@@ -446,8 +447,10 @@ fn register_geometry(props:  Properties,
     let refl_a;
     let alpha;
     let refr_c;
+    let margin;
 
     {
+        margin    = props.radius.unwrap_or((0, 0.0)).val1();
         solid     = props.solid;
         flat      = props.flat;
         let mname = props.material.as_ref().unwrap().ref1();
@@ -481,9 +484,10 @@ fn register_geometry(props:  Properties,
         for &(ref l, ref g) in props.geom.iter() {
             match *g {
                 Ball(ref r) => geoms.push(box Ball::new(*r) as Box<ImplicitGeom + Send + Share>),
-                Box(ref rs) => geoms.push(box Cuboid::new_with_margin(*rs, 0.0) as Box<ImplicitGeom + Send + Share>),
-                Cylinder(ref h, ref r) => geoms.push(box Cylinder::new_with_margin(*h, *r, 0.0) as Box<ImplicitGeom + Send + Share>),
-                Cone(ref h, ref r) => geoms.push(box Cone::new_with_margin(*h, *r, 0.0) as Box<ImplicitGeom + Send + Share>),
+                Cuboid(ref rs) => geoms.push(box Cuboid::new_with_margin(*rs, margin) as Box<ImplicitGeom + Send + Share>),
+                Cylinder(ref h, ref r) => geoms.push(box Cylinder::new_with_margin(*h, *r, margin) as Box<ImplicitGeom + Send + Share>),
+                Capsule(ref h, ref r) => geoms.push(box Capsule::new(*h, *r) as Box<ImplicitGeom + Send + Share>),
+                Cone(ref h, ref r) => geoms.push(box Cone::new_with_margin(*h, *r, margin) as Box<ImplicitGeom + Send + Share>),
                 _ => println!("Warning: unsuported geometry on a minkosky sum at line {}.", *l)
             }
         }
@@ -497,12 +501,14 @@ fn register_geometry(props:  Properties,
     match props.geom.get(0).ref1().clone() {
         Ball(r) =>
             nodes.push(Arc::new(SceneNode::new(material, refl_m, refl_a, alpha, refr_c, transform, box Ball::new(r), normals, solid))),
-        Box(rs) =>
-            nodes.push(Arc::new(SceneNode::new(material, refl_m, refl_a, alpha, refr_c, transform, box Cuboid::new_with_margin(rs, 0.0), normals, solid))),
+        Cuboid(rs) =>
+            nodes.push(Arc::new(SceneNode::new(material, refl_m, refl_a, alpha, refr_c, transform, box Cuboid::new_with_margin(rs, margin), normals, solid))),
         Cylinder(h, r) =>
-            nodes.push(Arc::new(SceneNode::new(material, refl_m, refl_a, alpha, refr_c, transform, box Cylinder::new_with_margin(h, r, 0.0), normals, solid))),
+            nodes.push(Arc::new(SceneNode::new(material, refl_m, refl_a, alpha, refr_c, transform, box Cylinder::new_with_margin(h, r, margin), normals, solid))),
+        Capsule(h, r) =>
+            nodes.push(Arc::new(SceneNode::new(material, refl_m, refl_a, alpha, refr_c, transform, box Capsule::new(h, r), normals, solid))),
         Cone(h, r) =>
-            nodes.push(Arc::new(SceneNode::new(material, refl_m, refl_a, alpha, refr_c, transform, box Cone::new_with_margin(h, r, 0.0), normals, solid))),
+            nodes.push(Arc::new(SceneNode::new(material, refl_m, refl_a, alpha, refr_c, transform, box Cone::new_with_margin(h, r, margin), normals, solid))),
         Plane(n) =>
             nodes.push(Arc::new(SceneNode::new(material, refl_m, refl_a, alpha, refr_c, transform, box Plane::new(n), normals, solid))),
         Obj(objpath, mtlpath) => {
@@ -528,10 +534,10 @@ fn register_geometry(props:  Properties,
                     let mesh;
                     
                     if flat {
-                        mesh = box Mesh::new_with_margin(coords.clone(), faces, Some(uvs.clone()), None, 0.0);
+                        mesh = box Mesh::new_with_margin(coords.clone(), faces, Some(uvs.clone()), None, margin);
                     }
                     else {
-                        mesh = box Mesh::new_with_margin(coords.clone(), faces, Some(uvs.clone()), Some(ns.clone()), 0.0);
+                        mesh = box Mesh::new_with_margin(coords.clone(), faces, Some(uvs.clone()), Some(ns.clone()), margin);
                     }
                     match mat {
                         Some(m) => {
@@ -636,7 +642,7 @@ fn parse_ball<'a>(l: uint, ws: Words<'a>) -> Geometry {
 fn parse_box<'a>(l: uint, ws: Words<'a>) -> Geometry {
     let extents = parse_triplet(l, ws);
 
-    Box(extents)
+    Cuboid(extents)
 }
 
 fn parse_plane<'a>(l: uint, ws: Words<'a>) -> Geometry {
@@ -649,6 +655,12 @@ fn parse_cylinder<'a>(l: uint, ws: Words<'a>) -> Geometry {
     let v = parse_duet(l, ws);
 
     Cylinder(v.x, v.y)
+}
+
+fn parse_capsule<'a>(l: uint, ws: Words<'a>) -> Geometry {
+    let v = parse_duet(l, ws);
+
+    Capsule(v.x, v.y)
 }
 
 fn parse_cone<'a>(l: uint, ws: Words<'a>) -> Geometry {

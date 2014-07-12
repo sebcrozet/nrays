@@ -1,12 +1,15 @@
-#![crate_id = "nrays4d#0.1"]
-#![crate_type = "lib"]
 #![warn(non_camel_case_types)]
 #![feature(managed_boxes)]
+#![feature(phase)]
 
+extern crate rustrt;
+extern crate native;
 extern crate nalgebra;
 extern crate ncollide = "ncollide4df64";
 extern crate png;
 extern crate stb_image;
+
+#[phase(plugin)] extern crate dim4;
 
 pub mod scene_node;
 pub mod scene;

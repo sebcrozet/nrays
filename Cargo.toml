@@ -1,0 +1,18 @@
+[package]
+name    = "nrays"
+version = "0.1.0"
+authors = [ "Sébastien Crozet <developer@crozet.re>" ]
+
+[[bin]]
+name = "loader3d"
+path = "examples/loader3d.rs"
+
+[[bin]]
+name = "sphere4d"
+path = "examples/sphere4d.rs"
+
+[dependencies.nrays3d]
+path = "build/nrays3d"
+
+[dependencies.nrays4d]
+path = "build/nrays4d"

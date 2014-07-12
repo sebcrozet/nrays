@@ -1,0 +1,18 @@
+[package]
+name    = "nrays3d"
+version = "0.1.0"
+authors = [ "Sébastien Crozet <developer@crozet.re>" ]
+
+[[lib]]
+name    = "nrays3d"
+path    = "../../src/lib3d.rs"
+
+[dependencies.ncollide3df64]
+version = "0.1.0"
+git     = "https://github.com/sebcrozet/ncollide"
+
+[dependencies.png]
+git     = "https://github.com/sebcrozet/rust-png"
+
+[dependencies.stb_image]
+git     = "https://github.com/sebcrozet/rust-stb-image"

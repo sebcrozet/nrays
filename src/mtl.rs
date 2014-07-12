@@ -14,7 +14,7 @@ fn error(line: uint, err: &str) -> ! {
 /// Parses a mtl file.
 pub fn parse_file(path: &Path) -> IoResult<Vec<MtlMaterial>> {
     match File::open(path) {
-        Ok(mut file) => file.read_to_str().map(|mtl| parse(mtl.as_slice())),
+        Ok(mut file) => file.read_to_string().map(|mtl| parse(mtl.as_slice())),
         Err(e)       => Err(e)
     }
 }
@@ -31,7 +31,7 @@ pub fn parse(string: &str) -> Vec<MtlMaterial> {
         match tag {
             None    => { },
             Some(w) => {
-                if w.len() != 0 && w[0] != ('#' as u8) {
+                if w.len() != 0 && w.as_bytes()[0] != ('#' as u8) {
                     let mut p = line.words().peekable();
                     let     _ = p.next();
 

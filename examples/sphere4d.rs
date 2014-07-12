@@ -1,5 +1,3 @@
-#![crate_id = "sphere4d"]
-#![crate_type = "bin"]
 #![warn(non_camel_case_types)]
 #![feature(managed_boxes)]
 
@@ -74,7 +72,7 @@ fn main() {
     nodes.push(Arc::new(SceneNode::new(blue.clone(), 0.0, 0.0, 1.0, 1.0, pos3, cone, None, true)));
     nodes.push(Arc::new(SceneNode::new(blue.clone(), 0.0, 0.0, 1.0, 1.0, pos4, cylinder, None, true)));
 
-    let scene = Scene::new(nodes, lights);
+    let scene = Scene::new(nodes, lights, na::zero());
     let pixels = scene.render(&resolution, |pt| {
         let x = (pt.x / resolution.x - 0.5) * 2.0;
         let y = (pt.y / resolution.y - 0.5) * 2.0;

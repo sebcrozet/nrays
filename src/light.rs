@@ -1,11 +1,8 @@
 use std::rand;
 use nalgebra::na::Vec3;
-use ncollide::math::{Scalar, Vect};
-
-#[cfg(dim3)]
 use nalgebra::na::Indexable;
-#[cfg(dim3)]
 use nalgebra::na;
+use ncollide::math::{Scalar, Vect};
 
 pub struct Light {
     pub pos:       Vect,
@@ -23,8 +20,10 @@ impl Light {
             color:   color
         }
     }
+}
 
-    #[cfg(dim3)]
+#[dim3]
+impl Light {
     pub fn sample<T>(&self, f: |Vect| -> T) {
         for i in range(0u, self.racsample) {
             for j in range(0u, self.racsample) {
@@ -50,8 +49,10 @@ impl Light {
             }
         }
     }
+}
 
-    #[cfg(not(dim3))]
+#[not_dim3]
+impl Light {
     pub fn sample<T>(&self, f: |Vect| -> T) {
         for _ in range(0u, self.racsample * self.racsample) {
             f(rand::random::<Vect>() * self.radius + self.pos);

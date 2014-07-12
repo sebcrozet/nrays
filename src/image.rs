@@ -1,17 +1,14 @@
 use std::io::Writer;
-use nalgebra::na::Vec3;
+use nalgebra::na::{Vec2, Vec3};
 use nalgebra::na;
 use ncollide::math::Scalar;
 
-#[cfg(dim3)]
 use png;
-#[cfg(dim3)]
-use nalgebra::na::Vec2;
 
-#[cfg(dim3)]
+#[dim3]
 pub type Vless = Vec2<Scalar>;
 
-#[cfg(dim4)]
+#[dim4]
 pub type Vless = Vec3<Scalar>;
 
 pub struct Image {
@@ -28,7 +25,7 @@ impl Image {
     }
 }
 
-#[cfg(dim3)]
+#[dim3]
 impl Image {
     pub fn to_ppm<W: Writer>(&self, w: &mut W) {
         // XXX: there is something weird here…
@@ -97,7 +94,7 @@ impl Image {
     }
 }
 
-#[cfg(dim4)]
+#[dim4]
 impl Image {
     pub fn to_file<W: Writer>(&self, w: &mut W) {
         let wx = self.extents.x as uint;

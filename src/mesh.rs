@@ -136,7 +136,7 @@ impl Mesh {
 
     /// This mesh faces.
     pub fn mut_faces<'r>(&'r mut self) -> &'r mut StorageLocation<Vec<Face>> {
-        &'r mut self.faces
+        &mut self.faces
     }
 
     /// This mesh normals.
@@ -146,7 +146,7 @@ impl Mesh {
 
     /// This mesh normals.
     pub fn mut_normals<'r>(&'r mut self) -> &'r mut StorageLocation<Vec<Normal>> {
-        &'r mut self.normals
+        &mut self.normals
     }
 
     /// This mesh vertices coordinates.
@@ -156,7 +156,7 @@ impl Mesh {
 
     /// This mesh vertices coordinates.
     pub fn mut_coords<'r>(&'r mut self) -> &'r mut StorageLocation<Vec<Coord>> {
-        &'r mut self.coords
+        &mut self.coords
     }
 
     /// This mesh texture coordinates.
@@ -166,7 +166,7 @@ impl Mesh {
 
     /// This mesh texture coordinates.
     pub fn mut_uvs<'r>(&'r mut self) -> &'r mut StorageLocation<Vec<UV>> {
-        &'r mut self.uvs
+        &mut self.uvs
     }
 }
 

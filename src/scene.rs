@@ -1,6 +1,14 @@
+use rustrt::bookkeeping;
+use std::rand;
+use std::sync::RWLock;
+use std::cmp;
+use std::rt;
 use std::num::Zero;
 use std::sync::Arc;
+use nalgebra::na::{Vec4, Mat4};
 use nalgebra::na::{Vec2, Vec3};
+use nalgebra::na::{Dim, Indexable};
+use nalgebra::na::Iterable;
 use nalgebra::na;
 use ncollide::bounding_volume::{AABB, HasAABB};
 use ncollide::partitioning::BVT;
@@ -13,36 +21,19 @@ use scene_node::SceneNode;
 use image::Image;
 use light::Light;
 
-#[cfg(dim4)]
-use nalgebra::na::{Dim, Indexable};
-#[cfg(dim4)]
-use nalgebra::na::Iterable;
-
-#[cfg(dim3)]
-use rustrt::bookkeeping;
-#[cfg(dim3)]
-use std::rand;
-#[cfg(dim3)]
-use std::sync::RWLock;
-#[cfg(dim3)]
-use std::cmp;
-#[cfg(dim3)]
-use std::rt;
-#[cfg(dim3)]
-use nalgebra::na::{Vec4, Mat4};
-
 pub struct Scene {
-    lights: Vec<Light>,
-    world:  BVT<Arc<SceneNode>, AABB>
+    background: Vec3<f32>,
+    lights:     Vec<Light>,
+    world:      BVT<Arc<SceneNode>, AABB>
 }
 
-#[cfg(dim3)]
+#[dim3]
 pub type Vless = Vec2<Scalar>;
 
-#[cfg(dim4)]
+#[dim4]
 pub type Vless = Vec3<Scalar>;
 
-#[cfg(dim3)]
+#[dim3]
 pub fn render(scene:         &Arc<Scene>,
               resolution:    &Vless,
               ray_per_pixel: uint,
@@ -132,7 +123,7 @@ pub fn render(scene:         &Arc<Scene>,
 }
 
 impl Scene {
-    pub fn new(nodes: Vec<Arc<SceneNode>>, lights: Vec<Light>) -> Scene {
+    pub fn new(nodes: Vec<Arc<SceneNode>>, lights: Vec<Light>, background: Vec3<f32>) -> Scene {
         let mut nodes_w_bvs = Vec::new();
 
         for n in nodes.move_iter() {
@@ -142,17 +133,25 @@ impl Scene {
         let bvt = BVT::new_kdtree(nodes_w_bvs);
 
         Scene {
-            lights: lights,
-            world:  bvt
+            lights:     lights,
+            world:      bvt,
+            background: background
         }
+    }
+
+    #[inline]
+    pub fn set_background(&mut self, background: Vec3<f32>) {
+        self.background = background
     }
 
     #[inline]
     pub fn lights<'a>(&'a self) -> &'a [Light] {
         self.lights.as_slice()
     }
+}
 
-    #[cfg(dim4)]
+#[dim4]
+impl Scene {
     pub fn render(&self, resolution: &Vless, unproject: |&Vless| -> Ray) -> Image {
         let mut npixels: Scalar = na::one();
 
@@ -190,7 +189,9 @@ impl Scene {
 
         Image::new(resolution.clone(), pixels)
     }
+}
 
+impl Scene {
     pub fn intersects_ray(&self, ray: &Ray, maxtoi: Scalar) -> Option<Vec3<f32>> {
         let mut filter = Vec3::new(1.0, 1.0, 1.0);
 
@@ -233,7 +234,7 @@ impl Scene {
         let cast = self.world.cast_ray(&ray.ray, &mut |b, r| { b.cast(r).map(|inter| (inter.toi, inter)) });
 
         match cast {
-            None                 => na::zero(),
+            None                 => self.background.clone(),
             Some((_, inter, sn)) => {
                 let bsn       = sn.deref();
                 let pt        = ray.ray.orig + ray.ray.dir * inter.toi;
@@ -304,12 +305,12 @@ impl Scene {
     }
 }
 
-#[cfg(dim3)]
+#[dim3]
 fn uvs(i: &RayIntersection) -> Option<Vec2<Scalar>> {
     i.uvs.clone()
 }
 
-#[cfg(not(dim3))]
+#[not_dim3]
 fn uvs(_: &RayIntersection) -> Option<Vec2<Scalar>> {
     None
 }
