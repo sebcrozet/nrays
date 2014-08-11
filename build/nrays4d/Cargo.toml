@@ -4,15 +4,14 @@ version = "0.1.0"
 authors = [ "Sébastien Crozet <developer@crozet.re>" ]
 
 [[lib]]
-name    = "nrays4d"
-path    = "../../src/lib4d.rs"
+name = "nrays4d"
+path = "../../src/lib4d.rs"
 
 [dependencies.ncollide4df64]
-version = "0.1.0"
-git     = "https://github.com/sebcrozet/ncollide"
+git = "https://github.com/sebcrozet/ncollide"
 
 [dependencies.png]
-git     = "https://github.com/sebcrozet/rust-png"
+git = "https://github.com/sebcrozet/rust-png"
 
 [dependencies.stb_image]
-git     = "https://github.com/sebcrozet/rust-stb-image"
+git = "https://github.com/sebcrozet/rust-stb-image"

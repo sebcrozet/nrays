@@ -1,7 +1,7 @@
 tmp=_git_distcheck
 
 all:
-	cargo build -u --release
+	cargo build --release
 
 render: all
 	cd bin; ./target/loader_3d balls.scene; mv out.png balls.png
@@ -26,6 +26,9 @@ render: all
 	cd bin; ./target/loader_3d rungholt.scene; mv out.png rungholt.png
 	cd bin; ./target/loader_3d sibenik.scene; mv out.png sibenik.png
 	cd bin; ./target/loader_3d teapot.scene; mv out.png teapot.png
+
+clean:
+	cargo clean
 
 distcheck:
 	rm -rf $(tmp)

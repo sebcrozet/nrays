@@ -16,7 +16,7 @@ pub enum StorageLocation<T> {
     NotShared(T)
 }
 
-impl<T: Clone + Share + Send> StorageLocation<T> {
+impl<T: Clone + Sync + Send> StorageLocation<T> {
     pub fn unwrap(&self) -> T {
         match *self {
             SharedImmutable(ref a) => a.deref().clone(),
@@ -25,7 +25,7 @@ impl<T: Clone + Share + Send> StorageLocation<T> {
     }
 }
 
-impl<T: Share + Send + Clone> Clone for StorageLocation<T> {
+impl<T: Sync + Send + Clone> Clone for StorageLocation<T> {
     fn clone(&self) -> StorageLocation<T> {
         match *self {
             SharedImmutable(ref t) => SharedImmutable(t.clone()),
@@ -35,7 +35,7 @@ impl<T: Share + Send + Clone> Clone for StorageLocation<T> {
 }
 
 
-impl<T: Share + Send> StorageLocation<T> {
+impl<T: Sync + Send> StorageLocation<T> {
     pub fn new(t: T, shared: bool) -> StorageLocation<T> {
         if shared {
             SharedImmutable(Arc::new(t))
@@ -60,7 +60,7 @@ impl<T: Share + Send> StorageLocation<T> {
     }
 }
 
-impl<T: Share + Send + Clone> StorageLocation<T> {
+impl<T: Sync + Send + Clone> StorageLocation<T> {
     pub fn write_cow<'r>(&'r mut self, f: |&mut T| -> ()) {
         match *self {
             SharedImmutable(ref mut s) => {

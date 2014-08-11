@@ -42,7 +42,7 @@ impl Image {
 
         for i in range(0u, height) {
             for j in range(0u, width) {
-                let c:     Vec3<f32> = self.pixels.get(i * width + j).clone();
+                let c:     Vec3<f32> = self.pixels[i * width + j].clone();
                 let color: Vec3<f32> = na::cast(c * 255.0f32);
                 let white            = Vec3::new(255.0, 255.0, 255.0);
                 let valid_color      = na::inf(&na::sup(&white, &color), &white);
@@ -67,7 +67,7 @@ impl Image {
         let mut data: Vec<u8> = Vec::new();
         for i in range(0u, height) {
             for j in range(0u, width) {
-                let c:     Vec3<f32> = self.pixels.get(i * width + j).clone();
+                let c:     Vec3<f32> = self.pixels[i * width + j].clone();
                 let color: Vec3<f32> = na::cast(c * 255.0f32);
                 let white            = Vec3::new(255.0, 255.0, 255.0);
                 let valid_color      = na::inf(&na::sup(&color, &na::zero()), &white);

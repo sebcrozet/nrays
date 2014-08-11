@@ -205,7 +205,7 @@ impl Texture2d {
     }
 
     pub fn at<'a>(&'a self, x: uint, y: uint) -> &'a Vec4<f32> {
-        self.data.pixels.get(y * self.data.dims.x + x)
+        &self.data.pixels[y * self.data.dims.x + x]
     }
 
     pub fn sample(&self, coords: &Vec2<Scalar>) -> Vec4<f32> {
