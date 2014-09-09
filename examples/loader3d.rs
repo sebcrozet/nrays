@@ -6,8 +6,8 @@ extern crate native;
 extern crate green;
 extern crate png;
 extern crate nalgebra;
-extern crate ncollide = "ncollide3df64";
-extern crate nrays    = "nrays3d";
+extern crate "ncollide3df64" as ncollide;
+extern crate "nrays3d"       as nrays;
 
 use std::from_str::from_str;
 use std::io::fs::File;
@@ -21,9 +21,9 @@ use nalgebra::na::{Vec2, Vec3, Iso3};
 use nalgebra::na;
 use ncollide::bounding_volume::{AABB, HasAABB, implicit_shape_aabb};
 use ncollide::geom::{Plane, Ball, Cone, Cylinder, Capsule, Cuboid, Mesh};
-use ncollide::implicit::{Implicit, HasMargin};
+use ncollide::implicit::Implicit;
 use ncollide::ray::{Ray, RayCast, RayIntersection, implicit_toi_and_normal_with_ray};
-use ncollide::math::{Scalar, Vect, Matrix};
+use ncollide::math::{Vect, Matrix};
 use ncollide::narrow::algorithm::johnson_simplex::JohnsonSimplex;
 use ncollide::geom::Geom;
 use nrays::scene_node::SceneNode;
@@ -52,7 +52,7 @@ fn main() {
         fail!("Usage: {} scene_file", *args.get(0));
     }
 
-    let path = Path::new(args.get(1).clone());
+    let path = Path::new(args[1].clone());
 
     if !path.exists() {
         fail!("Unable to find the file: {}", path.as_str().unwrap())
@@ -60,7 +60,7 @@ fn main() {
 
     println!("Loading the scene.");
     let s     = File::open(&path).unwrap().read_to_end().unwrap(); // FIXME: display an error message?
-    let descr = str::from_utf8_owned(s).unwrap();
+    let descr = str::from_utf8(s.as_slice()).unwrap();
 
     let (lights, nodes, cameras) = parse(descr.as_slice());
     let nnodes    = nodes.len();
@@ -447,10 +447,8 @@ fn register_geometry(props:  Properties,
     let refl_a;
     let alpha;
     let refr_c;
-    let margin;
 
     {
-        margin    = props.radius.unwrap_or((0, 0.0)).val1();
         solid     = props.solid;
         flat      = props.flat;
         let mname = props.material.as_ref().unwrap().ref1();
@@ -484,10 +482,10 @@ fn register_geometry(props:  Properties,
         for &(ref l, ref g) in props.geom.iter() {
             match *g {
                 Ball(ref r) => geoms.push(box Ball::new(*r) as Box<ImplicitGeom + Send + Sync>),
-                Cuboid(ref rs) => geoms.push(box Cuboid::new_with_margin(*rs, margin) as Box<ImplicitGeom + Send + Sync>),
-                Cylinder(ref h, ref r) => geoms.push(box Cylinder::new_with_margin(*h, *r, margin) as Box<ImplicitGeom + Send + Sync>),
+                Cuboid(ref rs) => geoms.push(box Cuboid::new(*rs) as Box<ImplicitGeom + Send + Sync>),
+                Cylinder(ref h, ref r) => geoms.push(box Cylinder::new(*h, *r) as Box<ImplicitGeom + Send + Sync>),
                 Capsule(ref h, ref r) => geoms.push(box Capsule::new(*h, *r) as Box<ImplicitGeom + Send + Sync>),
-                Cone(ref h, ref r) => geoms.push(box Cone::new_with_margin(*h, *r, margin) as Box<ImplicitGeom + Send + Sync>),
+                Cone(ref h, ref r) => geoms.push(box Cone::new(*h, *r) as Box<ImplicitGeom + Send + Sync>),
                 _ => println!("Warning: unsuported geometry on a minkosky sum at line {}.", *l)
             }
         }
@@ -498,17 +496,17 @@ fn register_geometry(props:  Properties,
         }
     }
 
-    match props.geom.get(0).ref1().clone() {
+    match props.geom[0].ref1().clone() {
         Ball(r) =>
             nodes.push(Arc::new(SceneNode::new(material, refl_m, refl_a, alpha, refr_c, transform, box Ball::new(r), normals, solid))),
         Cuboid(rs) =>
-            nodes.push(Arc::new(SceneNode::new(material, refl_m, refl_a, alpha, refr_c, transform, box Cuboid::new_with_margin(rs, margin), normals, solid))),
+            nodes.push(Arc::new(SceneNode::new(material, refl_m, refl_a, alpha, refr_c, transform, box Cuboid::new(rs), normals, solid))),
         Cylinder(h, r) =>
-            nodes.push(Arc::new(SceneNode::new(material, refl_m, refl_a, alpha, refr_c, transform, box Cylinder::new_with_margin(h, r, margin), normals, solid))),
+            nodes.push(Arc::new(SceneNode::new(material, refl_m, refl_a, alpha, refr_c, transform, box Cylinder::new(h, r), normals, solid))),
         Capsule(h, r) =>
             nodes.push(Arc::new(SceneNode::new(material, refl_m, refl_a, alpha, refr_c, transform, box Capsule::new(h, r), normals, solid))),
         Cone(h, r) =>
-            nodes.push(Arc::new(SceneNode::new(material, refl_m, refl_a, alpha, refr_c, transform, box Cone::new_with_margin(h, r, margin), normals, solid))),
+            nodes.push(Arc::new(SceneNode::new(material, refl_m, refl_a, alpha, refr_c, transform, box Cone::new(h, r), normals, solid))),
         Plane(n) =>
             nodes.push(Arc::new(SceneNode::new(material, refl_m, refl_a, alpha, refr_c, transform, box Plane::new(n), normals, solid))),
         Obj(objpath, mtlpath) => {
@@ -516,9 +514,9 @@ fn register_geometry(props:  Properties,
             let os      = obj::parse_file(&Path::new(objpath), &mtlpath, "").unwrap();
 
             if os.len() > 0 {
-                let coords: Arc<Vec<Vec3<f64>>> = Arc::new(os.get(0).ref1().coords().iter().map(|a| Vec3::new(a.x as f64, a.y as f64, a.z as f64) / 4.0f64).collect()); // XXX: remove this arbitrary division by 4.0!
-                let uvs: Arc<Vec<Vec2<f64>>>    = Arc::new(os.get(0).ref1().uvs().iter().flat_map(|a| vec!(Vec2::new(a.x as f64, a.y as f64)).move_iter()).collect());
-                let ns: Arc<Vec<Vec3<f64>>> = Arc::new(os.get(0).ref1().normals().iter().map(|a| Vec3::new(a.x as f64, a.y as f64, a.z as f64)).collect());
+                let coords: Arc<Vec<Vec3<f64>>> = Arc::new(os[0].ref1().coords().iter().map(|a| Vec3::new(a.x as f64, a.y as f64, a.z as f64) / 4.0f64).collect()); // XXX: remove this arbitrary division by 4.0!
+                let uvs: Arc<Vec<Vec2<f64>>>    = Arc::new(os[0].ref1().uvs().iter().flat_map(|a| vec!(Vec2::new(a.x as f64, a.y as f64)).move_iter()).collect());
+                let ns: Arc<Vec<Vec3<f64>>> = Arc::new(os[0].ref1().normals().iter().map(|a| Vec3::new(a.x as f64, a.y as f64, a.z as f64)).collect());
 
                 for n in ns.iter() {
                     if *n != *n {
@@ -534,10 +532,10 @@ fn register_geometry(props:  Properties,
                     let mesh;
                     
                     if flat {
-                        mesh = box Mesh::new_with_margin(coords.clone(), faces, Some(uvs.clone()), None, margin);
+                        mesh = box Mesh::new(coords.clone(), faces, Some(uvs.clone()), None);
                     }
                     else {
-                        mesh = box Mesh::new_with_margin(coords.clone(), faces, Some(uvs.clone()), Some(ns.clone()), margin);
+                        mesh = box Mesh::new(coords.clone(), faces, Some(uvs.clone()), Some(ns.clone()));
                     }
                     match mat {
                         Some(m) => {
@@ -698,14 +696,8 @@ impl HasAABB for MinkowksiSum {
     }
 }
 
-impl HasMargin for MinkowksiSum {
-    fn margin(&self) -> Scalar {
-        na::cast(0.0f64)
-    }
-}
-
 impl Implicit<Vect, Matrix> for MinkowksiSum {
-    fn support_point_without_margin(&self, transform: &Matrix, dir: &Vect) -> Vect {
+    fn support_point(&self, transform: &Matrix, dir: &Vect) -> Vect {
         let mut pt  = na::zero::<Vect>();
         let new_dir = na::inv_rotate(transform, dir);
 
@@ -714,10 +706,6 @@ impl Implicit<Vect, Matrix> for MinkowksiSum {
         }
 
         na::transform(transform, &pt)
-    }
-
-    fn support_point(&self, transform: &Matrix, dir: &Vect) -> Vect {
-        self.support_point_without_margin(transform, dir)
     }
 }
 

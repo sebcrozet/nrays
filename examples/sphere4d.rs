@@ -2,8 +2,8 @@
 #![feature(managed_boxes)]
 
 extern crate nalgebra;
-extern crate ncollide = "ncollide4df64";
-extern crate nrays    = "nrays4d";
+extern crate "ncollide4df64" as ncollide;
+extern crate "nrays4d"       as nrays;
 
 use std::sync::Arc;
 use std::io::fs::File;
@@ -56,10 +56,10 @@ fn main() {
 
     let transform: Iso4<f64> = na::one();
 
-    let box_shape = box Cuboid::new_with_margin(Vec4::new(0.25, 0.25, 0.25, 0.25), 0.0);
+    let box_shape = box Cuboid::new(Vec4::new(0.25, 0.25, 0.25, 0.25));
     let ball      = box Ball::new(0.25);
-    let cone      = box Cone::new_with_margin(0.25, 0.25, 0.0);
-    let cylinder  = box Cylinder::new_with_margin(0.25, 0.25, 0.0);
+    let cone      = box Cone::new(0.25, 0.25);
+    let cylinder  = box Cylinder::new(0.25, 0.25);
 
     let pos  = na::append_translation(&transform, &Vec4::new(0.0, 0.0, 0.0,    1.5));
     let pos2 = na::append_translation(&transform, &Vec4::new(0.75, 0.75, 0.0,  1.5));
