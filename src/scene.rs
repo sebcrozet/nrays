@@ -130,7 +130,7 @@ impl Scene {
             nodes_w_bvs.push((n.clone(), n.aabb.clone()));
         }
 
-        let bvt = BVT::new_kdtree(nodes_w_bvs);
+        let bvt = BVT::new_balanced(nodes_w_bvs);
 
         Scene {
             lights:     lights,

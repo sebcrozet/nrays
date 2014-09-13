@@ -5,7 +5,7 @@
 extern crate rustrt;
 extern crate native;
 extern crate nalgebra;
-extern crate ncollide = "ncollide4df64";
+extern crate "ncollide4df64" as ncollide;
 extern crate png;
 extern crate stb_image;
 
