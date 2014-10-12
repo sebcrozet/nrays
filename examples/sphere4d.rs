@@ -1,14 +1,12 @@
 #![warn(non_camel_case_types)]
-#![feature(managed_boxes)]
 
-extern crate nalgebra;
+extern crate "nalgebra" as na;
 extern crate "ncollide4df64" as ncollide;
 extern crate "nrays4d"       as nrays;
 
 use std::sync::Arc;
 use std::io::fs::File;
-use nalgebra::na::{Iso4, Vec3, Vec4};
-use nalgebra::na;
+use na::{Iso4, Pnt3, Pnt4, Vec3, Vec4};
 use ncollide::ray::Ray;
 use ncollide::geom::{Ball, Cuboid, Cone, Cylinder};
 use nrays::scene_node::SceneNode;
@@ -23,32 +21,32 @@ fn main() {
     let mut lights = Vec::new();
 
     {
-        lights.push(Light::new(Vec4::new(10.0f64, -10.0, 10.0, 1.0),
+        lights.push(Light::new(Pnt4::new(10.0f64, -10.0, 10.0, 1.0),
                                0.0,
                                1,
-                               Vec3::new(2.0, 2.0, 2.0)));
-        lights.push(Light::new(Vec4::new(-10.0f64, -10.0, 10.0, 1.0),
+                               Pnt3::new(2.0, 2.0, 2.0)));
+        lights.push(Light::new(Pnt4::new(-10.0f64, -10.0, 10.0, 1.0),
                                0.0,
                                1,
-                               Vec3::new(2.0, 2.0, 2.0)));
-        lights.push(Light::new(Vec4::new(10.0f64, 10.0, 10.0, 1.0),
+                               Pnt3::new(2.0, 2.0, 2.0)));
+        lights.push(Light::new(Pnt4::new(10.0f64, 10.0, 10.0, 1.0),
                                0.0,
                                1,
-                               Vec3::new(2.0, 2.0, 2.0)));
-        lights.push(Light::new(Vec4::new(-10.0f64, 10.0, 10.0, 1.0),
+                               Pnt3::new(2.0, 2.0, 2.0)));
+        lights.push(Light::new(Pnt4::new(-10.0f64, 10.0, 10.0, 1.0),
                                0.0,
                                1,
-                               Vec3::new(2.0, 2.0, 2.0)));
-        // lights.push(Light::new(Vec4::new(0.0f64, 10.0, 10.0, 1.0),
+                               Pnt3::new(2.0, 2.0, 2.0)));
+        // lights.push(Light::new(Pnt4::new(0.0f64, 10.0, 10.0, 1.0),
         //                        0.0,
         //                        1,
-        //                        Vec3::new(1.0, 1.0, 1.0)));
+        //                        Pnt3::new(1.0, 1.0, 1.0)));
     }
 
     let blue = Arc::new(box PhongMaterial::new(
-        Vec3::new(1.0, 1.0, 1.0),
-        Vec3::new(1.0, 1.0, 1.0),
-        Vec3::new(1.0, 1.0, 1.0),
+        Pnt3::new(1.0, 1.0, 1.0),
+        Pnt3::new(1.0, 1.0, 1.0),
+        Pnt3::new(1.0, 1.0, 1.0),
         None,
         None,
         60.0
@@ -77,8 +75,8 @@ fn main() {
         let x = (pt.x / resolution.x - 0.5) * 2.0;
         let y = (pt.y / resolution.y - 0.5) * 2.0;
         let z = (pt.z / resolution.z - 0.5) * 2.0;
-        let eye = Vec4::new(0.0, 0.0, 0.0, 0.0);
-        Ray::new(eye, na::normalize(&(Vec4::new(x, y, z, 1.0) - eye)))
+        let eye = Pnt4::new(0.0, 0.0, 0.0, 0.0);
+        Ray::new(eye, na::normalize(&(Pnt4::new(x, y, z, 1.0) - eye)))
 
         // Ray::new(Vec4::new(x, y, z, 0.0), Vec4::new(0.0, 0.0, 0.0, 1.0))
     });

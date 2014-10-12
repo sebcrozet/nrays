@@ -3,17 +3,17 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use stb_image::image::ImageU8;
 use stb_image::image;
-use nalgebra::na::{Vec4, Vec2};
-use nalgebra::na;
+use na::{Pnt2, Pnt4, Vec2};
+use na;
 use ncollide::math::Scalar;
 
 pub struct ImageData {
-    pixels: Vec<Vec4<f32>>,
+    pixels: Vec<Pnt4<f32>>,
     dims:   Vec2<uint>
 }
 
 impl ImageData {
-    pub fn new(pixels: Vec<Vec4<f32>>, dims: Vec2<uint>) -> ImageData {
+    pub fn new(pixels: Vec<Pnt4<f32>>, dims: Vec2<uint>) -> ImageData {
         assert!(pixels.len() == dims.x * dims.y);
         assert!(dims.x >= 1);
         assert!(dims.y >= 1);
@@ -115,10 +115,10 @@ impl Texture2d {
                                         let g = *p as f32 / 255.0;
 
                                         if opacity {
-                                            data.push(Vec4::new(1.0, 1.0, 1.0, g));
+                                            data.push(Pnt4::new(1.0, 1.0, 1.0, g));
                                         }
                                         else {
-                                            data.push(Vec4::new(g, g, g, 1.0));
+                                            data.push(Pnt4::new(g, g, g, 1.0));
                                         }
                                     }
 
@@ -131,10 +131,10 @@ impl Texture2d {
                                         let g = p[1] as f32 / 255.0;
 
                                         if opacity {
-                                            data.push(Vec4::new(1.0, 1.0, 1.0, g * r));
+                                            data.push(Pnt4::new(1.0, 1.0, 1.0, g * r));
                                         }
                                         else {
-                                            data.push(Vec4::new(r * g, r * g, r * g, 1.0));
+                                            data.push(Pnt4::new(r * g, r * g, r * g, 1.0));
                                         }
                                     }
 
@@ -148,10 +148,10 @@ impl Texture2d {
                                         let b = p[2] as f32 / 255.0;
 
                                         if opacity {
-                                            data.push(Vec4::new(1.0, 1.0, 1.0, r));
+                                            data.push(Pnt4::new(1.0, 1.0, 1.0, r));
                                         }
                                         else {
-                                            data.push(Vec4::new(r, g, b, 1.0));
+                                            data.push(Pnt4::new(r, g, b, 1.0));
                                         }
                                     }
 
@@ -166,10 +166,10 @@ impl Texture2d {
                                         let a = p[3] as f32 / 255.0;
 
                                         if opacity {
-                                            data.push(Vec4::new(1.0, 1.0, 1.0, a));
+                                            data.push(Pnt4::new(1.0, 1.0, 1.0, a));
                                         }
                                         else {
-                                            data.push(Vec4::new(r, g, b, 1.0));
+                                            data.push(Pnt4::new(r, g, b, 1.0));
                                         }
                                     }
 
@@ -204,11 +204,11 @@ impl Texture2d {
         data.map(|data| Texture2d::new(data, interpolation, overflow))
     }
 
-    pub fn at<'a>(&'a self, x: uint, y: uint) -> &'a Vec4<f32> {
+    pub fn at<'a>(&'a self, x: uint, y: uint) -> &'a Pnt4<f32> {
         &self.data.pixels[y * self.data.dims.x + x]
     }
 
-    pub fn sample(&self, coords: &Vec2<Scalar>) -> Vec4<f32> {
+    pub fn sample(&self, coords: &Pnt2<Scalar>) -> Pnt4<f32> {
         let mut ux: f32 = NumCast::from(coords.x).expect("Conversion of sampling coordinates failed.");
         let mut uy: f32 = NumCast::from(coords.y).expect("Conversion of sampling coordinates failed.");
 
@@ -251,10 +251,10 @@ impl Texture2d {
                 let dr = self.at(hig_ux, low_uy);
                 let dl = self.at(low_ux, low_uy);
 
-                let u_interpol = ul * (1.0 - shift_ux) + ur * shift_ux;
-                let d_interpol = dl * (1.0 - shift_ux) + dr * shift_ux;
+                let u_interpol = ul * (1.0 - shift_ux) + *ur.as_vec() * shift_ux;
+                let d_interpol = dl * (1.0 - shift_ux) + *dr.as_vec() * shift_ux;
 
-                u_interpol * shift_uy + d_interpol * (1.0 - shift_uy)
+                u_interpol * shift_uy + *d_interpol.as_vec() * (1.0 - shift_uy)
             }
         }
     }

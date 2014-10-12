@@ -3,9 +3,15 @@ name    = "nrays3d"
 version = "0.1.0"
 authors = [ "Sébastien Crozet <developer@crozet.re>" ]
 
-[[lib]]
+[features]
+default = [ "3d", "f64" ]
+f64     = []
+3d      = []
+
+[lib]
 name = "nrays3d"
 path = "../../src/lib3d.rs"
+
 
 [dependencies.ncollide3df64]
 git = "https://github.com/sebcrozet/ncollide"
@@ -14,4 +20,4 @@ git = "https://github.com/sebcrozet/ncollide"
 git = "https://github.com/sebcrozet/rust-png"
 
 [dependencies.stb_image]
-git = "https://github.com/sebcrozet/rust-stb-image"
+git = "https://github.com/servo/rust-stb-image"

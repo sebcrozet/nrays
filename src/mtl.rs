@@ -5,7 +5,7 @@ use std::io::fs::File;
 use std::io::{IoResult, Reader};
 use std::str::Words;
 use std::from_str::FromStr;
-use nalgebra::na::Vec3;
+use na::Pnt3;
 
 fn error(line: uint, err: &str) -> ! {
     fail!("At line {}: {}", line, err)
@@ -87,7 +87,7 @@ fn parse_name<'a>(_: uint, mut ws: Words<'a>) -> String {
     res.connect(" ")
 }
 
-fn parse_color<'a>(l: uint, mut ws: Words<'a>) -> Vec3<f32> {
+fn parse_color<'a>(l: uint, mut ws: Words<'a>) -> Pnt3<f32> {
     let sx = ws.next().unwrap_or_else(|| error(l, "3 components were expected, found 0."));
     let sy = ws.next().unwrap_or_else(|| error(l, "3 components were expected, found 1."));
     let sz = ws.next().unwrap_or_else(|| error(l, "3 components were expected, found 2."));
@@ -100,7 +100,7 @@ fn parse_color<'a>(l: uint, mut ws: Words<'a>) -> Vec3<f32> {
     let y = y.unwrap_or_else(|| error(l, format!("failed to parse `{}' as a f32.", sy).as_slice()));
     let z = z.unwrap_or_else(|| error(l, format!("failed to parse `{}' as a f32.", sz).as_slice()));
 
-    Vec3::new(x, y, z)
+    Pnt3::new(x, y, z)
 }
 
 fn parse_scalar<'a>(l: uint, mut ws: Words<'a>) -> f32 {
@@ -127,11 +127,11 @@ pub struct MtlMaterial {
     /// Path to the opacity map.
     pub opacity_map:      Option<String>,
     /// The ambiant color.
-    pub ambiant:          Vec3<f32>,
+    pub ambiant:          Pnt3<f32>,
     /// The diffuse color.
-    pub diffuse:          Vec3<f32>,
+    pub diffuse:          Pnt3<f32>,
     /// The specular color.
-    pub specular:         Vec3<f32>,
+    pub specular:         Pnt3<f32>,
     /// The shininess.
     pub shininess:        f32,
     /// Alpha blending.
@@ -149,9 +149,9 @@ impl MtlMaterial {
             diffuse_texture:  None,
             specular_texture: None,
             opacity_map:      None,
-            ambiant:          Vec3::new(1.0, 1.0, 1.0),
-            diffuse:          Vec3::new(1.0, 1.0, 1.0),
-            specular:         Vec3::new(1.0, 1.0, 1.0),
+            ambiant:          Pnt3::new(1.0, 1.0, 1.0),
+            diffuse:          Pnt3::new(1.0, 1.0, 1.0),
+            specular:         Pnt3::new(1.0, 1.0, 1.0),
         }
     }
 
@@ -159,9 +159,9 @@ impl MtlMaterial {
     pub fn new(name:             String,
                shininess:        f32,
                alpha:            f32,
-               ambiant:          Vec3<f32>,
-               diffuse:          Vec3<f32>,
-               specular:         Vec3<f32>,
+               ambiant:          Pnt3<f32>,
+               diffuse:          Pnt3<f32>,
+               specular:         Pnt3<f32>,
                ambiant_texture:  Option<String>,
                diffuse_texture:  Option<String>,
                specular_texture: Option<String>,

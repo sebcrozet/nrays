@@ -1,18 +1,19 @@
 use std::rand;
-use nalgebra::na::Vec3;
-use nalgebra::na::Indexable;
-use nalgebra::na;
-use ncollide::math::{Scalar, Vect};
+use na::Pnt3;
+use ncollide::math::{Scalar, Point, Vect};
+
+#[cfg(feature = "3d")]
+use na;
 
 pub struct Light {
-    pub pos:       Vect,
+    pub pos:       Point,
     pub radius:    Scalar,
     pub racsample: uint,
-    pub color:     Vec3<f32>
+    pub color:     Pnt3<f32>
 }
 
 impl Light {
-    pub fn new(pos: Vect, radius: Scalar, nsample: uint, color: Vec3<f32>) -> Light {
+    pub fn new(pos: Point, radius: Scalar, nsample: uint, color: Pnt3<f32>) -> Light {
         Light {
             pos:     pos,
             radius:  radius,
@@ -22,9 +23,9 @@ impl Light {
     }
 }
 
-#[dim3]
+#[cfg(feature = "3d")]
 impl Light {
-    pub fn sample<T>(&self, f: |Vect| -> T) {
+    pub fn sample<T>(&self, f: |Point| -> T) {
         for i in range(0u, self.racsample) {
             for j in range(0u, self.racsample) {
                 let iracsample = na::one::<Scalar>() / na::cast(self.racsample);
@@ -41,21 +42,21 @@ impl Light {
                 let ctheta = theta.cos();
                 let stheta = theta.sin();
 
-                v.set(0, self.radius * cphi * stheta);
-                v.set(1, self.radius * sphi * stheta);
-                v.set(2, self.radius * ctheta);
+                v[0] = self.radius * cphi * stheta;
+                v[1] = self.radius * sphi * stheta;
+                v[2] = self.radius * ctheta;
 
-                f(v + self.pos);
+                f(self.pos + v);
             }
         }
     }
 }
 
-#[not_dim3]
+#[cfg(not(feature = "3d"))]
 impl Light {
-    pub fn sample<T>(&self, f: |Vect| -> T) {
+    pub fn sample<T>(&self, f: |Point| -> T) {
         for _ in range(0u, self.racsample * self.racsample) {
-            f(rand::random::<Vect>() * self.radius + self.pos);
+            f(self.pos + rand::random::<Vect>() * self.radius);
         }
     }
 }

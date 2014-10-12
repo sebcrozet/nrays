@@ -2,8 +2,8 @@
 
 use std::sync::Arc;
 use std::num::Zero;
-use nalgebra::na::{Vec2, Vec3};
-use nalgebra::na;
+use na::{Vec2, Vec3};
+use na;
 
 pub type Coord  = Vec3<f32>;
 pub type Normal = Vec3<f32>;
@@ -187,18 +187,9 @@ pub fn compute_normals(coordinates: &[Coord],
                        normals:     &mut Vec<Normal>) {
     let mut divisor = Vec::from_elem(coordinates.len(), 0f32);
 
-    // Shrink the output buffer if it is too big.
-    if normals.len() > coordinates.len() {
-        normals.truncate(coordinates.len())
-    }
-
-    // Reinit all normals to zero.
-    for n in normals.mut_iter() {
-        *n = na::zero()
-    }
-
     // Grow the output buffer if it is too small.
-    normals.grow_set(coordinates.len() - 1, &na::zero(), na::zero());
+    normals.clear();
+    normals.grow(coordinates.len(), na::zero());
 
     // Accumulate normals ...
     for f in faces.iter() {
@@ -226,7 +217,7 @@ pub fn compute_normals(coordinates: &[Coord],
     }
 
     // ... and compute the mean
-    for (n, divisor) in normals.mut_iter().zip(divisor.iter()) {
+    for (n, divisor) in normals.iter_mut().zip(divisor.iter()) {
         *n = *n / *divisor
     }
 }

@@ -1,15 +1,12 @@
 #![warn(non_camel_case_types)]
-#![feature(managed_boxes)]
 #![feature(phase)]
 
 extern crate rustrt;
 extern crate native;
-extern crate nalgebra;
+extern crate "nalgebra" as na;
 extern crate "ncollide3df64" as ncollide;
 extern crate png;
 extern crate stb_image;
-
-#[phase(plugin)] extern crate dim3;
 
 pub mod scene_node;
 pub mod scene;

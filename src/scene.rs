@@ -1,25 +1,32 @@
+#[cfg(feature = "3d")]
 use rustrt::bookkeeping;
+#[cfg(feature = "3d")]
 use std::rand;
+#[cfg(feature = "3d")]
 use std::sync::RWLock;
+#[cfg(feature = "3d")]
 use std::cmp;
+#[cfg(feature = "3d")]
 use std::rt;
+#[cfg(feature = "3d")]
+use na::{Pnt3, Pnt4, Vec2, Mat4};
 use std::num::Zero;
 use std::sync::Arc;
-use nalgebra::na::{Vec4, Mat4};
-use nalgebra::na::{Vec2, Vec3};
-use nalgebra::na::{Dim, Indexable};
-use nalgebra::na::Iterable;
-use nalgebra::na;
+use na::{Pnt2, Vec3};
+use na;
 use ncollide::bounding_volume::{AABB, HasAABB};
 use ncollide::partitioning::BVT;
 // use ncollide::partitioning::bvt_visitor::RayInterferencesCollector;
 use ncollide::ray::{Ray, RayIntersection};
-use ncollide::math::{Scalar, Vect};
+use ncollide::math::{Scalar, Point, Vect};
 use material::Material;
 use ray_with_energy::RayWithEnergy;
 use scene_node::SceneNode;
 use image::Image;
 use light::Light;
+
+#[cfg(feature = "4d")]
+use na::Iterable;
 
 pub struct Scene {
     background: Vec3<f32>,
@@ -27,18 +34,18 @@ pub struct Scene {
     world:      BVT<Arc<SceneNode>, AABB>
 }
 
-#[dim3]
+#[cfg(feature = "3d")]
 pub type Vless = Vec2<Scalar>;
 
-#[dim4]
+#[cfg(feature = "4d")]
 pub type Vless = Vec3<Scalar>;
 
-#[dim3]
+#[cfg(feature = "3d")]
 pub fn render(scene:         &Arc<Scene>,
               resolution:    &Vless,
               ray_per_pixel: uint,
               window_width:  Scalar,
-              camera_eye:    Vect,
+              camera_eye:    Point,
               projection:    Mat4<Scalar>)
               -> Image {
     assert!(ray_per_pixel > 0);
@@ -89,9 +96,9 @@ pub fn render(scene:         &Arc<Scene>,
                      */
                     let device_x = (orig.x / (resx as f64) - 0.5) * 2.0;
                     let device_y = -(orig.y / (resy as f64) - 0.5) * 2.0;
-                    let start = Vec4::new(device_x, device_y, -1.0, 1.0);
+                    let start = Pnt4::new(device_x, device_y, -1.0, 1.0);
                     let h_eye = projection * start;
-                    let eye: Vec3<f64> = na::from_homogeneous(&h_eye);
+                    let eye: Pnt3<f64> = na::from_homogeneous(&h_eye);
                     let ray = Ray::new(camera_eye, na::normalize(&(eye - camera_eye)));
 
                     let c: Vec3<f32> = scene.trace(&RayWithEnergy::new(ray.orig.clone(), ray.dir));
@@ -126,7 +133,7 @@ impl Scene {
     pub fn new(nodes: Vec<Arc<SceneNode>>, lights: Vec<Light>, background: Vec3<f32>) -> Scene {
         let mut nodes_w_bvs = Vec::new();
 
-        for n in nodes.move_iter() {
+        for n in nodes.into_iter() {
             nodes_w_bvs.push((n.clone(), n.aabb.clone()));
         }
 
@@ -150,7 +157,7 @@ impl Scene {
     }
 }
 
-#[dim4]
+#[cfg(feature = "4d")]
 impl Scene {
     pub fn render(&self, resolution: &Vless, unproject: |&Vless| -> Ray) -> Image {
         let mut npixels: Scalar = na::one();
@@ -174,14 +181,14 @@ impl Scene {
             let c   = self.trace(&RayWithEnergy::new(ray.orig.clone(), ray.dir));
             pixels.push(c);
 
-            for j in range(0u, Dim::dim(None::<Vless>)) {
-                let inc = curr.at(j) + na::one();
+            for j in range(0u, na::dim::<Vless>()) {
+                let inc = curr[j] + na::one();
 
-                if inc == resolution.at(j) {
-                    curr.set(j, na::zero());
+                if inc == resolution[j] {
+                    curr[j] = na::zero();
                 }
                 else {
-                    curr.set(j, inc);
+                    curr[j] = inc;
                     break;
                 }
             }
@@ -259,7 +266,7 @@ impl Scene {
     }
 
     #[inline]
-    fn trace_reflection(&self, mix: f32, attenuation: f32, ray: &RayWithEnergy, pt: &Vect, normal: &Vect) -> Vec3<f32> {
+    fn trace_reflection(&self, mix: f32, attenuation: f32, ray: &RayWithEnergy, pt: &Point, normal: &Vect) -> Vec3<f32> {
         if !mix.is_zero() && ray.energy > 0.1 {
             let nproj      = normal * na::dot(&ray.ray.dir, normal);
             let rdir       = ray.ray.dir - nproj * na::cast::<f32, Scalar>(2.0);
@@ -278,7 +285,7 @@ impl Scene {
     }
 
     #[inline]
-    fn trace_refraction(&self, alpha: f32, coeff: Scalar, ray: &RayWithEnergy, pt: &Vect, normal: &Vect) -> Vec3<f32>  {
+    fn trace_refraction(&self, alpha: f32, coeff: Scalar, ray: &RayWithEnergy, pt: &Point, normal: &Vect) -> Vec3<f32>  {
         if alpha != 1.0 {
             let n1;
             let n2;
@@ -305,12 +312,12 @@ impl Scene {
     }
 }
 
-#[dim3]
-fn uvs(i: &RayIntersection) -> Option<Vec2<Scalar>> {
+#[cfg(feature = "3d")]
+fn uvs(i: &RayIntersection) -> Option<Pnt2<Scalar>> {
     i.uvs.clone()
 }
 
-#[not_dim3]
-fn uvs(_: &RayIntersection) -> Option<Vec2<Scalar>> {
+#[cfg(not(feature = "3d"))]
+fn uvs(_: &RayIntersection) -> Option<Pnt2<Scalar>> {
     None
 }

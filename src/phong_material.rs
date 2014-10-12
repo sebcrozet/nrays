@@ -1,6 +1,6 @@
-use nalgebra::na::{Vec2, Vec3, Vec4, Norm};
-use nalgebra::na;
-use ncollide::math::{Scalar, Vect};
+use na::{Pnt2, Pnt3, Pnt4, Vec3, Norm, Axpy};
+use na;
+use ncollide::math::{Scalar, Point, Vect};
 use ncollide::ray::Ray;
 use ray_with_energy::RayWithEnergy;
 use scene::Scene;
@@ -9,18 +9,18 @@ use texture2d::Texture2d;
 
 
 pub struct PhongMaterial {
-    diffuse_color:      Vec3<f32>,
-    ambiant_color:      Vec3<f32>,
-    specular_color:     Vec3<f32>,
+    diffuse_color:      Pnt3<f32>,
+    ambiant_color:      Pnt3<f32>,
+    specular_color:     Pnt3<f32>,
     texture:            Option<Texture2d>,
     alpha:              Option<Texture2d>,
     shininess:          f32 // FIXME: rename that
 }
 
 impl PhongMaterial {
-    pub fn new(ambiant_color:  Vec3<f32>,
-               diffuse_color:  Vec3<f32>,
-               specular_color: Vec3<f32>,
+    pub fn new(ambiant_color:  Pnt3<f32>,
+               diffuse_color:  Pnt3<f32>,
+               specular_color: Pnt3<f32>,
                texture:        Option<Texture2d>,
                alpha:          Option<Texture2d>,
                shininess:      f32)
@@ -37,11 +37,11 @@ impl PhongMaterial {
 }
 
 impl Material for PhongMaterial {
-    fn ambiant(&self, _: &Vect, _: &Vect, uvs: &Option<Vec2<Scalar>>) -> Vec4<f32> {
+    fn ambiant(&self, _: &Point, _: &Vect, uvs: &Option<Pnt2<Scalar>>) -> Pnt4<f32> {
         // initialize with the ambiant color
         
         if na::dim::<Vect>() == 3 && uvs.is_some() {
-            let mut tex_color = Vec4::new(1.0, 1.0, 1.0, 1.0);
+            let mut tex_color = Pnt4::new(1.0, 1.0, 1.0, 1.0);
 
             let uvs   = uvs.as_ref().unwrap();
 
@@ -58,21 +58,21 @@ impl Material for PhongMaterial {
 
             let a = self.ambiant_color;
 
-            Vec4::new(a.x, a.y, a.z, 1.0) * tex_color
+            Pnt4::new(a.x * tex_color.x, a.y * tex_color.y, a.z * tex_color.z, 1.0 * tex_color.w)
         }
         else {
             let a = self.ambiant_color;
-            Vec4::new(a.x, a.y, a.z, 1.0)
+            Pnt4::new(a.x, a.y, a.z, 1.0)
         }
     }
 
     fn compute(&self,
                ray:    &RayWithEnergy,
-               point:  &Vect,
+               point:  &Point,
                normal: &Vect,
-               uvs:    &Option<Vec2<Scalar>>,
+               uvs:    &Option<Pnt2<Scalar>>,
                scene:  &Scene)
-               -> Vec4<f32> {
+               -> Pnt4<f32> {
         // initialize with the ambiant color
         let mut res;
         let tex_color;
@@ -85,7 +85,7 @@ impl Material for PhongMaterial {
             tex_color   = texture
         }
         else {
-            tex_color = Vec4::new(1.0f32, 1.0, 1.0, 1.0)
+            tex_color = Pnt4::new(1.0f32, 1.0, 1.0, 1.0)
         }
 
         if na::dim::<Vect>() == 3 && uvs.is_some() && self.alpha.is_some() {
@@ -97,8 +97,8 @@ impl Material for PhongMaterial {
             alpha = 1.0;
         }
 
-        let tex_color = Vec3::new(tex_color.x, tex_color.y, tex_color.z);
-        res = self.ambiant_color * tex_color;
+        let tex_color = Pnt3::new(tex_color.x, tex_color.y, tex_color.z);
+        res = *self.ambiant_color.as_vec() * *tex_color.as_vec();
 
         // compute the contribution of each light
         for light in scene.lights().iter() {
@@ -115,7 +115,7 @@ impl Material for PhongMaterial {
                         // diffuse
                         let dcoeff: f32   = NumCast::from(dot_ldir_norm.clone()).expect("[0] Conversion failed.");
                         let dcoeff        = dcoeff.max(0.0);
-                        let diffuse_color = self.diffuse_color * tex_color;
+                        let diffuse_color = *self.diffuse_color.as_vec() * *tex_color.as_vec();
 
                         let diffuse = diffuse_color * dcoeff;
 
@@ -128,18 +128,18 @@ impl Material for PhongMaterial {
                             let scoeff   = scoeff.clone().powf(self.shininess);
                             let specular = self.specular_color * scoeff;
 
-                            acc = acc + light.color * filter * (diffuse + specular);
+                            acc = acc + light.color.as_vec() * filter * (diffuse + *specular.as_vec());
                         }
                         else {
-                            acc = acc + light.color * filter * diffuse;
+                            acc = acc + light.color.as_vec() * filter * diffuse;
                         }
                     }
                 }
             });
 
-            res = res + acc / ((light.racsample * light.racsample) as f32);
+            res.axpy(&( 1.0 / (light.racsample * light.racsample) as f32), &acc);
         }
 
-        Vec4::new(res.x, res.y, res.z, alpha)
+        Pnt4::new(res.x, res.y, res.z, alpha)
     }
 }

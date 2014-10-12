@@ -1,14 +1,17 @@
 use std::io::Writer;
-use nalgebra::na::{Vec2, Vec3};
-use nalgebra::na;
+use na::Vec3;
+use na;
 use ncollide::math::Scalar;
 
+#[cfg(feature = "3d")]
+use na::Vec2;
+#[cfg(feature = "3d")]
 use png;
 
-#[dim3]
+#[cfg(feature = "3d")]
 pub type Vless = Vec2<Scalar>;
 
-#[dim4]
+#[cfg(feature = "4d")]
 pub type Vless = Vec3<Scalar>;
 
 pub struct Image {
@@ -25,7 +28,7 @@ impl Image {
     }
 }
 
-#[dim3]
+#[cfg(feature = "3d")]
 impl Image {
     pub fn to_ppm<W: Writer>(&self, w: &mut W) {
         // XXX: there is something weird here…
@@ -94,7 +97,7 @@ impl Image {
     }
 }
 
-#[dim4]
+#[cfg(feature = "4d")]
 impl Image {
     pub fn to_file<W: Writer>(&self, w: &mut W) {
         let wx = self.extents.x as uint;
@@ -104,7 +107,7 @@ impl Image {
         for x in range(0u, wx) {
             for y in range(0u, wy) {
                 for z in range(0u, wz) {
-                    let c:     Vec3<f32> = self.pixels.get(z * wx * wy + y * wx + x).clone();
+                    let c:     Vec3<f32> = self.pixels[z * wx * wy + y * wx + x].clone();
                     let color: Vec3<f32> = na::cast(c * 255.0f32);
                     let white            = Vec3::new(255.0, 255.0, 255.0);
                     let valid_color      = na::inf(&na::sup(&color, &na::zero()), &white);

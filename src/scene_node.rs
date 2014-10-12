@@ -1,11 +1,13 @@
 use std::sync::Arc;
-use nalgebra::na;
-use nalgebra::na::Transform;
+use na::Transform;
 use ncollide::ray::{RayCast, Ray, RayIntersection};
 use ncollide::bounding_volume::{HasAABB, AABB};
 use ncollide::math::{Scalar, Matrix};
 use material::Material;
 use texture2d::Texture2d;
+
+#[cfg(feature = "3d")]
+use na;
 
 pub struct SceneNode {
     pub refl_mix:        f32,
@@ -48,7 +50,7 @@ impl SceneNode {
 
 }
 
-#[dim3]
+#[cfg(feature = "3d")]
 impl SceneNode {
     pub fn cast(&self, r: &Ray) -> Option<RayIntersection> {
         let res = self.geometry.toi_and_normal_and_uv_with_transform_and_ray(&self.transform, r, self.solid);
@@ -81,7 +83,7 @@ impl SceneNode {
     }
 }
 
-#[dim4]
+#[cfg(feature = "4d")]
 impl SceneNode {
     pub fn cast(&self, r: &Ray) -> Option<RayIntersection> {
         self.geometry.toi_and_normal_with_transform_and_ray(

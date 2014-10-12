@@ -1,17 +1,17 @@
-use nalgebra::na::{Vec2, Vec4};
-use ncollide::math::{Scalar, Vect};
+use na::{Pnt2, Pnt4};
+use ncollide::math::{Scalar, Point, Vect};
 use ray_with_energy::RayWithEnergy;
 use scene::Scene;
 
 pub trait Material {
-    fn ambiant(&self, pt: &Vect, normal: &Vect, uv: &Option<Vec2<Scalar>>) -> Vec4<f32>;
+    fn ambiant(&self, pt: &Point, normal: &Vect, uv: &Option<Pnt2<Scalar>>) -> Pnt4<f32>;
     fn compute(&self,
                _:      &RayWithEnergy,
-               pt:     &Vect,
+               pt:     &Point,
                normal: &Vect,
-               uv:     &Option<Vec2<Scalar>>,
+               uv:     &Option<Pnt2<Scalar>>,
                _:      &Scene)
-               -> Vec4<f32> {
+               -> Pnt4<f32> {
         self.ambiant(pt, normal, uv)
     }
 }

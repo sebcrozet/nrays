@@ -1,29 +1,27 @@
 #![warn(non_camel_case_types)]
-#![feature(managed_boxes)]
 #![feature(globs)]
 
 extern crate native;
 extern crate green;
 extern crate png;
-extern crate nalgebra;
+extern crate "nalgebra" as na;
 extern crate "ncollide3df64" as ncollide;
 extern crate "nrays3d"       as nrays;
 
 use std::from_str::from_str;
-use std::io::fs::File;
+use std::io::fs::{File, PathExtensions};
 use std::os;
 use std::mem;
 use std::str;
 use std::str::Words;
 use std::collections::HashMap;
 use std::sync::Arc;
-use nalgebra::na::{Vec2, Vec3, Iso3};
-use nalgebra::na;
+use na::{Pnt2, Pnt3, Vec2, Vec3, Iso3};
 use ncollide::bounding_volume::{AABB, HasAABB, implicit_shape_aabb};
 use ncollide::geom::{Plane, Ball, Cone, Cylinder, Capsule, Cuboid, Mesh};
 use ncollide::implicit::Implicit;
 use ncollide::ray::{Ray, RayCast, RayIntersection, implicit_toi_and_normal_with_ray};
-use ncollide::math::{Vect, Matrix};
+use ncollide::math::{Point, Vect, Matrix};
 use ncollide::narrow::algorithm::johnson_simplex::JohnsonSimplex;
 use ncollide::geom::Geom;
 use nrays::scene_node::SceneNode;
@@ -69,7 +67,7 @@ fn main() {
     let scene = Arc::new(Scene::new(nodes, lights, na::one()));
     println!("Scene loaded. {} lights, {} objects, {} cameras.", nlights, nnodes, ncams);
 
-    for c in cameras.move_iter() {
+    for c in cameras.into_iter() {
         // FIXME: new_perspective is _not_ accessible as a free function.
         let perspective = na::perspective3d(
             c.resolution.x,
@@ -103,27 +101,26 @@ fn main() {
 //
 //
 enum Mode {
-    Light,
-    Geometry,
-    Camera,
+    LightMode,
+    GeomMode,
+    CameraMode,
     NoMode
 }
 
 #[deriving(Clone)]
 enum Geometry {
-    Ball(f64),
-    Plane(Vec3<f64>),
-    Cuboid(Vec3<f64>),
-    Cylinder(f64, f64),
-    Capsule(f64, f64),
-    Cone(f64, f64),
-    Obj(String, String),
+    GBall(f64),
+    GPlane(Vec3<f64>),
+    GCuboid(Vec3<f64>),
+    GCylinder(f64, f64),
+    GCapsule(f64, f64),
+    GCone(f64, f64),
+    GObj(String, String),
 }
 
 struct Camera {
-    background: Vec3<f32>,
-    eye:        Vec3<f64>,
-    at:         Vec3<f64>,
+    eye:        Pnt3<f64>,
+    at:         Pnt3<f64>,
     fovy:       f64,
     resolution: Vec2<f64>,
     aa:         Vec2<f64>,
@@ -131,11 +128,10 @@ struct Camera {
 }
 
 impl Camera {
-    pub fn new(background: Vec3<f32>, eye: Vec3<f64>, at: Vec3<f64>, fovy: f64, resolution: Vec2<f64>, aa: Vec2<f64>, output: String) -> Camera {
+    pub fn new(eye: Pnt3<f64>, at: Pnt3<f64>, fovy: f64, resolution: Vec2<f64>, aa: Vec2<f64>, output: String) -> Camera {
         assert!(aa.x >= 1.0, "The number of ray per pixel must be at least 1.0");
 
         Camera {
-            background: background,
             eye:        eye,
             at:         at,
             fovy:       fovy,
@@ -147,15 +143,15 @@ impl Camera {
 }
 
 struct Properties {
-    superbloc: uint,
+    superbloc:  uint,
     geom:       Vec<(uint, Geometry)>,
-    pos:        Option<(uint, Vec3<f64>)>,
+    pos:        Option<(uint, Pnt3<f64>)>,
     angle:      Option<(uint, Vec3<f64>)>,
     material:   Option<(uint, String)>,
-    eye:        Option<(uint, Vec3<f64>)>,
-    at:         Option<(uint, Vec3<f64>)>,
+    eye:        Option<(uint, Pnt3<f64>)>,
+    at:         Option<(uint, Pnt3<f64>)>,
     fovy:       Option<(uint, f64)>,
-    color:      Option<(uint, Vec3<f64>)>,
+    color:      Option<(uint, Pnt3<f64>)>,
     resolution: Option<(uint, Vec2<f64>)>,
     output:     Option<(uint, String)>,
     refl:       Option<(uint, Vec2<f64>)>,
@@ -213,9 +209,9 @@ fn parse(string: &str) -> (Vec<Light>, Vec<Arc<SceneNode>>, Vec<Camera>) {
         let tag        = words.next();
 
         let white = Arc::new(box PhongMaterial::new(
-            Vec3::new(0.1, 0.1, 0.1),
-            Vec3::new(1.0, 1.0, 1.0),
-            Vec3::new(1.0, 1.0, 1.0),
+            Pnt3::new(0.1, 0.1, 0.1),
+            Pnt3::new(1.0, 1.0, 1.0),
+            Pnt3::new(1.0, 1.0, 1.0),
             None,
             None,
             100.0
@@ -235,24 +231,24 @@ fn parse(string: &str) -> (Vec<Light>, Vec<Arc<SceneNode>>, Vec<Camera>) {
                         "light"    => {
                             let old = mem::replace(&mut props, Properties::new(l));
                             register(&mode, old, &mut mtllib, &mut lights, &mut nodes, &mut cameras);
-                            mode  = Light;
+                            mode  = LightMode;
                         },
                         "geometry" => {
                             let old = mem::replace(&mut props, Properties::new(l));
                             register(&mode, old, &mut mtllib, &mut lights, &mut nodes, &mut cameras);
-                            mode  = Geometry;
+                            mode  = GeomMode;
                         },
                         "camera"   => {
                             let old = mem::replace(&mut props, Properties::new(l));
                             register(&mode, old, &mut mtllib, &mut lights, &mut nodes, &mut cameras);
-                            mode  = Camera;
+                            mode  = CameraMode;
                         },
                         // common attributes
-                        "color"      => props.color      = Some((l, parse_triplet(l, words))),
+                        "color"      => props.color      = Some((l, parse_triplet(l, words).to_pnt())),
                         "angle"      => props.angle      = Some((l, parse_triplet(l, words))),
-                        "pos"        => props.pos        = Some((l, parse_triplet(l, words))),
-                        "eye"        => props.eye        = Some((l, parse_triplet(l, words))),
-                        "at"         => props.at         = Some((l, parse_triplet(l, words))),
+                        "pos"        => props.pos        = Some((l, parse_triplet(l, words).to_pnt())),
+                        "eye"        => props.eye        = Some((l, parse_triplet(l, words).to_pnt())),
+                        "at"         => props.at         = Some((l, parse_triplet(l, words).to_pnt())),
                         "material"   => props.material   = Some((l, parse_name(l, words))),
                         "fovy"       => props.fovy       = Some((l, parse_number(l, words))),
                         "output"     => props.output     = Some((l, parse_name(l, words))),
@@ -293,10 +289,10 @@ fn register(mode:    &Mode,
             nodes:   &mut Vec<Arc<SceneNode>>,
             cameras: &mut Vec<Camera>) {
     match *mode {
-        Light    => register_light(props, lights),
-        Geometry => register_geometry(props, mtllib, nodes),
-        Camera   => register_camera(props, cameras),
-        NoMode   => register_nothing(props),
+        LightMode  => register_light(props, lights),
+        GeomMode   => register_geometry(props, mtllib, nodes),
+        CameraMode => register_camera(props, cameras),
+        NoMode     => register_nothing(props),
     }
 }
 
@@ -368,9 +364,8 @@ fn register_camera(props: Properties, cameras: &mut Vec<Camera>) {
     let fov  = props.fovy.unwrap().val1();
     let res  = props.resolution.unwrap().val1();
     let name = props.output.unwrap().val1();
-    let background = props.color.unwrap_or((l, na::zero()));
 
-    cameras.push(Camera::new(na::cast(background.val1()), eye, at, fov, res, aa.val1(), name));
+    cameras.push(Camera::new(eye, at, fov, res, aa.val1(), name));
 }
 
 fn register_light(props: Properties, lights: &mut Vec<Light>) {
@@ -392,7 +387,7 @@ fn register_light(props: Properties, lights: &mut Vec<Light>) {
     let radius  = props.radius.unwrap_or((props.superbloc, 0.0)).val1();
     let nsample = props.nsample.unwrap_or((props.superbloc, 1.0)).val1();
     let pos     = props.pos.unwrap().val1();
-    let color   = na::cast(props.color.unwrap().val1());
+    let color: Pnt3<f32> = na::cast(props.color.unwrap().val1());
     let light   = Light::new(pos, radius, nsample as uint, color);
 
     lights.push(light);
@@ -401,7 +396,7 @@ fn register_light(props: Properties, lights: &mut Vec<Light>) {
 fn register_mtllib(path: &str, mtllib: &mut HashMap<String, (f32, Arc<Box<Material + Send + Sync>>)>) {
     let materials = mtl::parse_file(&Path::new(path)).unwrap(); // expect(format!("Failed to parse the mtl file: {}", path));
 
-    for m in materials.move_iter() {
+    for m in materials.into_iter() {
         let t = m.diffuse_texture.as_ref().map(|t| Texture2d::from_png(&Path::new(t.as_slice()), false, Bilinear, Wrap).expect("Image not found."));
 
         let a = m.opacity_map.as_ref().map(|t| Texture2d::from_png(&Path::new(t.as_slice()), true, Bilinear, Wrap).expect("Image not found."));
@@ -465,7 +460,7 @@ fn register_geometry(props:  Properties,
         angle.y = angle.y.to_radians();
         angle.z = angle.z.to_radians();
 
-        transform = Iso3::new(pos, angle);
+        transform = Iso3::new(pos.to_vec(), angle);
         normals   = None;
 
         let refl_param = props.refl.unwrap_or((props.superbloc, Vec2::new(0.0, 0.0))).val1();
@@ -481,11 +476,11 @@ fn register_geometry(props:  Properties,
 
         for &(ref l, ref g) in props.geom.iter() {
             match *g {
-                Ball(ref r) => geoms.push(box Ball::new(*r) as Box<ImplicitGeom + Send + Sync>),
-                Cuboid(ref rs) => geoms.push(box Cuboid::new(*rs) as Box<ImplicitGeom + Send + Sync>),
-                Cylinder(ref h, ref r) => geoms.push(box Cylinder::new(*h, *r) as Box<ImplicitGeom + Send + Sync>),
-                Capsule(ref h, ref r) => geoms.push(box Capsule::new(*h, *r) as Box<ImplicitGeom + Send + Sync>),
-                Cone(ref h, ref r) => geoms.push(box Cone::new(*h, *r) as Box<ImplicitGeom + Send + Sync>),
+                GBall(ref r) => geoms.push(box Ball::new(*r) as Box<ImplicitGeom + Send + Sync>),
+                GCuboid(ref rs) => geoms.push(box Cuboid::new(*rs) as Box<ImplicitGeom + Send + Sync>),
+                GCylinder(ref h, ref r) => geoms.push(box Cylinder::new(*h, *r) as Box<ImplicitGeom + Send + Sync>),
+                GCapsule(ref h, ref r) => geoms.push(box Capsule::new(*h, *r) as Box<ImplicitGeom + Send + Sync>),
+                GCone(ref h, ref r) => geoms.push(box Cone::new(*h, *r) as Box<ImplicitGeom + Send + Sync>),
                 _ => println!("Warning: unsuported geometry on a minkosky sum at line {}.", *l)
             }
         }
@@ -497,25 +492,25 @@ fn register_geometry(props:  Properties,
     }
 
     match props.geom[0].ref1().clone() {
-        Ball(r) =>
+        GBall(r) =>
             nodes.push(Arc::new(SceneNode::new(material, refl_m, refl_a, alpha, refr_c, transform, box Ball::new(r), normals, solid))),
-        Cuboid(rs) =>
+        GCuboid(rs) =>
             nodes.push(Arc::new(SceneNode::new(material, refl_m, refl_a, alpha, refr_c, transform, box Cuboid::new(rs), normals, solid))),
-        Cylinder(h, r) =>
+        GCylinder(h, r) =>
             nodes.push(Arc::new(SceneNode::new(material, refl_m, refl_a, alpha, refr_c, transform, box Cylinder::new(h, r), normals, solid))),
-        Capsule(h, r) =>
+        GCapsule(h, r) =>
             nodes.push(Arc::new(SceneNode::new(material, refl_m, refl_a, alpha, refr_c, transform, box Capsule::new(h, r), normals, solid))),
-        Cone(h, r) =>
+        GCone(h, r) =>
             nodes.push(Arc::new(SceneNode::new(material, refl_m, refl_a, alpha, refr_c, transform, box Cone::new(h, r), normals, solid))),
-        Plane(n) =>
+        GPlane(n) =>
             nodes.push(Arc::new(SceneNode::new(material, refl_m, refl_a, alpha, refr_c, transform, box Plane::new(n), normals, solid))),
-        Obj(objpath, mtlpath) => {
+        GObj(objpath, mtlpath) => {
             let mtlpath = Path::new(mtlpath);
             let os      = obj::parse_file(&Path::new(objpath), &mtlpath, "").unwrap();
 
             if os.len() > 0 {
-                let coords: Arc<Vec<Vec3<f64>>> = Arc::new(os[0].ref1().coords().iter().map(|a| Vec3::new(a.x as f64, a.y as f64, a.z as f64) / 4.0f64).collect()); // XXX: remove this arbitrary division by 4.0!
-                let uvs: Arc<Vec<Vec2<f64>>>    = Arc::new(os[0].ref1().uvs().iter().flat_map(|a| vec!(Vec2::new(a.x as f64, a.y as f64)).move_iter()).collect());
+                let coords: Arc<Vec<Pnt3<f64>>> = Arc::new(os[0].ref1().coords().iter().map(|a| Pnt3::new(a.x as f64, a.y as f64, a.z as f64) / 4.0f64).collect()); // XXX: remove this arbitrary division by 4.0!
+                let uvs: Arc<Vec<Pnt2<f64>>>    = Arc::new(os[0].ref1().uvs().iter().flat_map(|a| vec!(Pnt2::new(a.x as f64, a.y as f64)).into_iter()).collect());
                 let ns: Arc<Vec<Vec3<f64>>> = Arc::new(os[0].ref1().normals().iter().map(|a| Vec3::new(a.x as f64, a.y as f64, a.z as f64)).collect());
 
                 for n in ns.iter() {
@@ -524,10 +519,10 @@ fn register_geometry(props:  Properties,
                     }
                 }
 
-                for (_, o, mat) in os.move_iter() {
+                for (_, o, mat) in os.into_iter() {
                     let mut o = o;
                     let faces = o.mut_faces().unwrap();
-                    let faces = Arc::new(faces.iter().flat_map(|a| vec!(a.x as uint, a.y as uint, a.z as uint).move_iter()).collect());
+                    let faces = Arc::new(faces.iter().flat_map(|a| vec!(a.x as uint, a.y as uint, a.z as uint).into_iter()).collect());
 
                     let mesh;
                     
@@ -634,49 +629,49 @@ fn parse_duet<'a>(l: uint, mut ws: Words<'a>) -> Vec2<f64> {
 fn parse_ball<'a>(l: uint, ws: Words<'a>) -> Geometry {
     let radius = parse_number(l, ws);
 
-    Ball(radius)
+    GBall(radius)
 }
 
 fn parse_box<'a>(l: uint, ws: Words<'a>) -> Geometry {
     let extents = parse_triplet(l, ws);
 
-    Cuboid(extents)
+    GCuboid(extents)
 }
 
 fn parse_plane<'a>(l: uint, ws: Words<'a>) -> Geometry {
     let normal = na::normalize(&parse_triplet(l, ws));
 
-    Plane(normal)
+    GPlane(normal)
 }
 
 fn parse_cylinder<'a>(l: uint, ws: Words<'a>) -> Geometry {
     let v = parse_duet(l, ws);
 
-    Cylinder(v.x, v.y)
+    GCylinder(v.x, v.y)
 }
 
 fn parse_capsule<'a>(l: uint, ws: Words<'a>) -> Geometry {
     let v = parse_duet(l, ws);
 
-    Capsule(v.x, v.y)
+    GCapsule(v.x, v.y)
 }
 
 fn parse_cone<'a>(l: uint, ws: Words<'a>) -> Geometry {
     let v = parse_duet(l, ws);
 
-    Cone(v.x, v.y)
+    GCone(v.x, v.y)
 }
 
 fn parse_obj<'a>(l: uint, mut ws: Words<'a>) -> Geometry {
     let objpath = ws.next().unwrap_or_else(|| error(l, "2 paths were expected, found 0."));
     let mtlpath = ws.next().unwrap_or_else(|| error(l, "2 paths were expected, found 1."));
 
-    Obj(objpath.to_string(), mtlpath.to_string())
+    GObj(objpath.to_string(), mtlpath.to_string())
 }
 
-trait ImplicitGeom : Implicit<Vect, Matrix> + Geom { }
+trait ImplicitGeom : Implicit<Point, Vect, Matrix> + Geom { }
 
-impl<T: Implicit<Vect, Matrix> + Geom> ImplicitGeom for T { }
+impl<T: Implicit<Point, Vect, Matrix> + Geom> ImplicitGeom for T { }
 
 struct MinkowksiSum {
     geoms: Vec<Box<ImplicitGeom + Sync + Send>>
@@ -696,13 +691,13 @@ impl HasAABB for MinkowksiSum {
     }
 }
 
-impl Implicit<Vect, Matrix> for MinkowksiSum {
-    fn support_point(&self, transform: &Matrix, dir: &Vect) -> Vect {
-        let mut pt  = na::zero::<Vect>();
+impl Implicit<Point, Vect, Matrix> for MinkowksiSum {
+    fn support_point(&self, transform: &Matrix, dir: &Vect) -> Point {
+        let mut pt  = na::orig::<Point>();
         let new_dir = na::inv_rotate(transform, dir);
 
         for i in self.geoms.iter() {
-            pt = pt + i.support_point(&na::one(), &new_dir)
+            pt = pt + i.support_point(&na::one(), &new_dir).to_vec()
         }
 
         na::transform(transform, &pt)
@@ -711,6 +706,6 @@ impl Implicit<Vect, Matrix> for MinkowksiSum {
 
 impl RayCast for MinkowksiSum {
     fn toi_and_normal_with_ray(&self, ray: &Ray, solid: bool) -> Option<RayIntersection> {
-        implicit_toi_and_normal_with_ray(&na::one(), self, &mut JohnsonSimplex::<Vect>::new_w_tls(), ray, solid)
+        implicit_toi_and_normal_with_ray(&na::one(), self, &mut JohnsonSimplex::<Point, Vect>::new_w_tls(), ray, solid)
     }
 }
