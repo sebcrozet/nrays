@@ -1,7 +1,7 @@
 #![warn(non_camel_case_types)]
 
 extern crate "nalgebra" as na;
-extern crate "ncollide4df64" as ncollide;
+extern crate ncollide;
 extern crate "nrays4d"       as nrays;
 
 use std::sync::Arc;

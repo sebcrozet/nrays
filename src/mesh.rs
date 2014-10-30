@@ -121,7 +121,7 @@ impl Mesh {
 
     /// Recompute this mesh normals.
     pub fn recompute_normals(&mut self) {
-        fail!("Review that.")
+        panic!("Review that.")
         /*
         self.normals.write_cow(
             |normals| compute_normals(self.coords.get().as_slice(), self.faces.get().as_slice(), normals)

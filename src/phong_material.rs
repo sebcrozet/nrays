@@ -1,7 +1,7 @@
 use na::{Pnt2, Pnt3, Pnt4, Vec3, Norm, Axpy};
 use na;
-use ncollide::math::{Scalar, Point, Vect};
 use ncollide::ray::Ray;
+use math::{Scalar, Point, Vect};
 use ray_with_energy::RayWithEnergy;
 use scene::Scene;
 use material::Material;

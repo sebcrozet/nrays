@@ -5,8 +5,8 @@ extern crate native;
 extern crate green;
 extern crate png;
 extern crate "nalgebra" as na;
-extern crate "ncollide3df64" as ncollide;
-extern crate "nrays3d"       as nrays;
+extern crate ncollide;
+extern crate "nrays3d" as nrays;
 
 use std::from_str::from_str;
 use std::io::fs::{File, PathExtensions};
@@ -16,12 +16,11 @@ use std::str;
 use std::str::Words;
 use std::collections::HashMap;
 use std::sync::Arc;
-use na::{Pnt2, Pnt3, Vec2, Vec3, Iso3};
+use na::{Pnt2, Pnt3, Vec2, Vec3, Iso3, Persp3, Translate};
 use ncollide::bounding_volume::{AABB, HasAABB, implicit_shape_aabb};
-use ncollide::geom::{Plane, Ball, Cone, Cylinder, Capsule, Cuboid, Mesh};
+use ncollide::geom::{Plane, Ball, Cone, Cylinder, Capsule, Cuboid, Mesh, Mesh3d};
 use ncollide::implicit::Implicit;
-use ncollide::ray::{Ray, RayCast, RayIntersection, implicit_toi_and_normal_with_ray};
-use ncollide::math::{Point, Vect, Matrix};
+use ncollide::ray::{Ray3d, RayCast, LocalRayCast, RayIntersection3d, implicit_toi_and_normal_with_ray};
 use ncollide::narrow::algorithm::johnson_simplex::JohnsonSimplex;
 use ncollide::geom::Geom;
 use nrays::scene_node::SceneNode;
@@ -35,6 +34,7 @@ use nrays::scene;
 use nrays::light::Light;
 use nrays::obj;
 use nrays::mtl;
+use nrays::math::{Scalar, Point, Vect, Matrix};
 
 #[start]
 fn start(argc: int, argv: *const *const u8) -> int {
@@ -47,13 +47,13 @@ fn main() {
     let args = os::args();
 
     if args.len() != 2 {
-        fail!("Usage: {} scene_file", *args.get(0));
+        panic!("Usage: {} scene_file", args[0]);
     }
 
     let path = Path::new(args[1].clone());
 
     if !path.exists() {
-        fail!("Unable to find the file: {}", path.as_str().unwrap())
+        panic!("Unable to find the file: {}", path.as_str().unwrap())
     }
 
     println!("Loading the scene.");
@@ -69,12 +69,11 @@ fn main() {
 
     for c in cameras.into_iter() {
         // FIXME: new_perspective is _not_ accessible as a free function.
-        let perspective = na::perspective3d(
-            c.resolution.x,
-            c.resolution.y,
+        let perspective = Persp3::new(
+            c.resolution.x / c.resolution.y,
             c.fovy.to_radians(),
             1.0,
-            100000.0);
+            100000.0).to_mat();
 
         let mut camera = na::one::<Iso3<f64>>();
         camera.look_at_z(&c.eye, &c.at, &Vec3::y());
@@ -189,7 +188,7 @@ impl Properties {
 }
 
 fn error(line: uint, err: &str) -> ! {
-    fail!("At line {}: {}", line, err)
+    panic!("At line {}: {}", line, err)
 }
 
 fn warn(line: uint, err: &str) {
@@ -244,11 +243,11 @@ fn parse(string: &str) -> (Vec<Light>, Vec<Arc<SceneNode>>, Vec<Camera>) {
                             mode  = CameraMode;
                         },
                         // common attributes
-                        "color"      => props.color      = Some((l, parse_triplet(l, words).to_pnt())),
+                        "color"      => props.color      = Some((l, parse_triplet(l, words).translate(&na::orig()))),
                         "angle"      => props.angle      = Some((l, parse_triplet(l, words))),
-                        "pos"        => props.pos        = Some((l, parse_triplet(l, words).to_pnt())),
-                        "eye"        => props.eye        = Some((l, parse_triplet(l, words).to_pnt())),
-                        "at"         => props.at         = Some((l, parse_triplet(l, words).to_pnt())),
+                        "pos"        => props.pos        = Some((l, parse_triplet(l, words).translate(&na::orig()))),
+                        "eye"        => props.eye        = Some((l, parse_triplet(l, words).translate(&na::orig()))),
+                        "at"         => props.at         = Some((l, parse_triplet(l, words).translate(&na::orig()))),
                         "material"   => props.material   = Some((l, parse_name(l, words))),
                         "fovy"       => props.fovy       = Some((l, parse_number(l, words))),
                         "output"     => props.output     = Some((l, parse_name(l, words))),
@@ -448,7 +447,7 @@ fn register_geometry(props:  Properties,
         flat      = props.flat;
         let mname = props.material.as_ref().unwrap().ref1();
         special   = mname.as_slice() == "uvs" || mname.as_slice() == "normals";
-        let (a, m)= mtllib.find(mname).unwrap_or_else(|| fail!("Attempted to use an unknown material: {}", *mname)).clone();
+        let (a, m)= mtllib.find(mname).unwrap_or_else(|| panic!("Attempted to use an unknown material: {}", *mname)).clone();
 
         alpha    = a;
         material = m;
@@ -515,7 +514,7 @@ fn register_geometry(props:  Properties,
 
                 for n in ns.iter() {
                     if *n != *n {
-                        fail!("This normal is wrong: {}", *n);
+                        panic!("This normal is wrong: {}", *n);
                     }
                 }
 
@@ -524,7 +523,7 @@ fn register_geometry(props:  Properties,
                     let faces = o.mut_faces().unwrap();
                     let faces = Arc::new(faces.iter().flat_map(|a| vec!(a.x as uint, a.y as uint, a.z as uint).into_iter()).collect());
 
-                    let mesh;
+                    let mesh: Box<Mesh3d>;
                     
                     if flat {
                         mesh = box Mesh::new(coords.clone(), faces, Some(uvs.clone()), None);
@@ -541,7 +540,7 @@ fn register_geometry(props:  Properties,
                                     p.push(t.as_slice());
 
                                     if !p.exists() {
-                                        fail!(format!("Image not found: {}", p.as_str()));
+                                        panic!(format!("Image not found: {}", p.as_str()));
                                     }
 
                                     Texture2d::from_png(&p, false, Bilinear, Wrap)
@@ -555,7 +554,7 @@ fn register_geometry(props:  Properties,
                                     p.push(a.as_slice());
 
                                     if !p.exists() {
-                                        fail!(format!("Image not found: {}", p.as_str()));
+                                        panic!(format!("Image not found: {}", p.as_str()));
                                     }
 
                                     Texture2d::from_png(&p, true, Bilinear, Wrap)
@@ -669,9 +668,9 @@ fn parse_obj<'a>(l: uint, mut ws: Words<'a>) -> Geometry {
     GObj(objpath.to_string(), mtlpath.to_string())
 }
 
-trait ImplicitGeom : Implicit<Point, Vect, Matrix> + Geom { }
+trait ImplicitGeom : Implicit<Point, Vect, Matrix> + Geom<Scalar, Point, Vect, Matrix> { }
 
-impl<T: Implicit<Point, Vect, Matrix> + Geom> ImplicitGeom for T { }
+impl<T: Implicit<Point, Vect, Matrix> + Geom<Scalar, Point, Vect, Matrix>> ImplicitGeom for T { }
 
 struct MinkowksiSum {
     geoms: Vec<Box<ImplicitGeom + Sync + Send>>
@@ -685,8 +684,8 @@ impl MinkowksiSum {
     }
 }
 
-impl HasAABB for MinkowksiSum {
-    fn aabb(&self, m: &Matrix) -> AABB {
+impl HasAABB<Point, Matrix> for MinkowksiSum {
+    fn aabb(&self, m: &Matrix) -> AABB<Point> {
         implicit_shape_aabb(m, self)
     }
 }
@@ -704,8 +703,11 @@ impl Implicit<Point, Vect, Matrix> for MinkowksiSum {
     }
 }
 
-impl RayCast for MinkowksiSum {
-    fn toi_and_normal_with_ray(&self, ray: &Ray, solid: bool) -> Option<RayIntersection> {
-        implicit_toi_and_normal_with_ray(&na::one(), self, &mut JohnsonSimplex::<Point, Vect>::new_w_tls(), ray, solid)
+impl LocalRayCast<Scalar, Point, Vect> for MinkowksiSum {
+    fn toi_and_normal_with_ray(&self, ray: &Ray3d, solid: bool) -> Option<RayIntersection3d> {
+        implicit_toi_and_normal_with_ray(&na::one(), self, &mut JohnsonSimplex::<Scalar, Point, Vect>::new_w_tls(), ray, solid)
     }
+}
+
+impl RayCast<Scalar, Point, Vect, Matrix> for MinkowksiSum {
 }

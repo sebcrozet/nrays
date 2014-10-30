@@ -1,9 +1,9 @@
 use na;
 use ncollide::ray::Ray;
-use ncollide::math::{Scalar, Point, Vect};
+use math::{Scalar, Point, Vect};
 
 pub struct RayWithEnergy {
-    pub ray:    Ray,
+    pub ray:    Ray<Point, Vect>,
     pub refr:   Scalar,
     pub energy: f32
 }

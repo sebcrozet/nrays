@@ -21,7 +21,7 @@ pub type Normal = Vec3<f32>;
 pub type UV     = Vec2<f32>;
 
 fn error(line: uint, err: &str) -> ! {
-    fail!("At line {}: {:s}", line, err)
+    panic!("At line {}: {:s}", line, err)
 }
 
 fn warn(line: uint, err: &str) {
@@ -200,7 +200,7 @@ fn parse_f<'a>(l:              uint,
             if i == 0 || w.len() != 0 {
                 let idx: Option<i32> = FromStr::from_str(w);
                 match idx {
-                    Some(id) => curr_ids.set(i, id - 1),
+                    Some(id) => curr_ids[i] = id - 1,
                     None     => error(l, format!("failed to parse `{}' as a i32.", w).as_slice())
                 }
             }

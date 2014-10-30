@@ -5,7 +5,7 @@ use stb_image::image::ImageU8;
 use stb_image::image;
 use na::{Pnt2, Pnt4, Vec2};
 use na;
-use ncollide::math::Scalar;
+use math::Scalar;
 
 pub struct ImageData {
     pixels: Vec<Pnt4<f32>>,
@@ -177,7 +177,7 @@ impl Texture2d {
                                     Vec2::new(image.width as uint, image.height as uint))))
                                 }
                                 else {
-                                    fail!("Image depth {} not suported.", image.depth);
+                                    panic!("Image depth {} not suported.", image.depth);
                                 }
                             },
                             _ => {

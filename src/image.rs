@@ -1,7 +1,7 @@
 use std::io::Writer;
 use na::Vec3;
 use na;
-use ncollide::math::Scalar;
+use math::Scalar;
 
 #[cfg(feature = "3d")]
 use na::Vec2;
@@ -82,17 +82,16 @@ impl Image {
             }
         }
 
-        let img = png::Image {
-            width:      width  as u32,
-            height:     height as u32,
-            color_type: png::RGB8,
-            pixels:     data
+        let mut img = png::Image {
+            width:  width  as u32,
+            height: height as u32,
+            pixels: png::RGB8(data)
         };
 
-        let res = png::store_png(&img, path);
+        let res = png::store_png(&mut img, path);
 
         if !res.is_ok() {
-            fail!("Failed to save the output image.")
+            panic!("Failed to save the output image.")
         }
     }
 }

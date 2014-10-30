@@ -1,6 +1,6 @@
 use na::{Pnt2, Pnt3, Pnt4, Vec3};
 use na;
-use ncollide::math::Scalar;
+use math::Scalar;
 use material::Material;
 
 pub struct UVMaterial;

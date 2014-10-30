@@ -1,5 +1,5 @@
 use na::{Pnt2, Pnt4};
-use ncollide::math::{Scalar, Point, Vect};
+use math::{Scalar, Point, Vect};
 use ray_with_energy::RayWithEnergy;
 use scene::Scene;
 

@@ -1,6 +1,6 @@
 use std::rand;
 use na::Pnt3;
-use ncollide::math::{Scalar, Point, Vect};
+use math::{Scalar, Point, Vect};
 
 #[cfg(feature = "3d")]
 use na;

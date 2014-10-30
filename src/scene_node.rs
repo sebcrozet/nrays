@@ -2,7 +2,7 @@ use std::sync::Arc;
 use na::Transform;
 use ncollide::ray::{RayCast, Ray, RayIntersection};
 use ncollide::bounding_volume::{HasAABB, AABB};
-use ncollide::math::{Scalar, Matrix};
+use math::{Scalar, Point, Vect, Matrix};
 use material::Material;
 use texture2d::Texture2d;
 
@@ -17,13 +17,13 @@ pub struct SceneNode {
     pub solid:           bool,
     pub material:        Arc<Box<Material + Sync + Send>>,
     pub transform:       Matrix,
-    pub geometry:        Box<RayCast + Sync + Send>,
-    pub aabb:            AABB,
+    pub geometry:        Box<RayCast<Scalar, Point, Vect, Matrix> + Sync + Send>,
+    pub aabb:            AABB<Point>,
     pub nmap:            Option<Texture2d>
 }
 
 impl SceneNode {
-    pub fn new<G: 'static + Send + Sync + RayCast + HasAABB>(
+    pub fn new<G: 'static + Send + Sync + RayCast<Scalar, Point, Vect, Matrix> + HasAABB<Point, Matrix>>(
                material:        Arc<Box<Material + Sync + Send>>,
                refl_mix:        f32,
                refl_atenuation: f32,
@@ -41,7 +41,7 @@ impl SceneNode {
             refr_coeff:      refr_coeff,
             material:        material,
             aabb:            geometry.aabb(&transform),
-            geometry:        geometry as Box<RayCast + Sync + Send>,
+            geometry:        geometry as Box<RayCast<Scalar, Point, Vect, Matrix> + Sync + Send>,
             transform:       transform,
             nmap:            nmap,
             solid:           solid
@@ -52,7 +52,7 @@ impl SceneNode {
 
 #[cfg(feature = "3d")]
 impl SceneNode {
-    pub fn cast(&self, r: &Ray) -> Option<RayIntersection> {
+    pub fn cast(&self, r: &Ray<Point, Vect>) -> Option<RayIntersection<Scalar, Vect>> {
         let res = self.geometry.toi_and_normal_and_uv_with_transform_and_ray(&self.transform, r, self.solid);
 
         if res.is_none() {
@@ -85,7 +85,7 @@ impl SceneNode {
 
 #[cfg(feature = "4d")]
 impl SceneNode {
-    pub fn cast(&self, r: &Ray) -> Option<RayIntersection> {
+    pub fn cast(&self, r: &Ray<Point, Vect>) -> Option<RayIntersection<Scalar, Vect>> {
         self.geometry.toi_and_normal_with_transform_and_ray(
             &self.transform,
             r,

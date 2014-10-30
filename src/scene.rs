@@ -18,7 +18,7 @@ use ncollide::bounding_volume::{AABB, HasAABB};
 use ncollide::partitioning::BVT;
 // use ncollide::partitioning::bvt_visitor::RayInterferencesCollector;
 use ncollide::ray::{Ray, RayIntersection};
-use ncollide::math::{Scalar, Point, Vect};
+use math::{Scalar, Point, Vect};
 use material::Material;
 use ray_with_energy::RayWithEnergy;
 use scene_node::SceneNode;
@@ -31,7 +31,7 @@ use na::Iterable;
 pub struct Scene {
     background: Vec3<f32>,
     lights:     Vec<Light>,
-    world:      BVT<Arc<SceneNode>, AABB>
+    world:      BVT<Arc<SceneNode>, AABB<Point>>
 }
 
 #[cfg(feature = "3d")]
@@ -159,7 +159,7 @@ impl Scene {
 
 #[cfg(feature = "4d")]
 impl Scene {
-    pub fn render(&self, resolution: &Vless, unproject: |&Vless| -> Ray) -> Image {
+    pub fn render(&self, resolution: &Vless, unproject: |&Vless| -> Ray<Point, Vect>) -> Image {
         let mut npixels: Scalar = na::one();
 
         for i in resolution.iter() {
@@ -199,7 +199,7 @@ impl Scene {
 }
 
 impl Scene {
-    pub fn intersects_ray(&self, ray: &Ray, maxtoi: Scalar) -> Option<Vec3<f32>> {
+    pub fn intersects_ray(&self, ray: &Ray<Point, Vect>, maxtoi: Scalar) -> Option<Vec3<f32>> {
         let mut filter = Vec3::new(1.0, 1.0, 1.0);
 
         let inter = self.world.cast_ray(ray, &mut |b, r| {
@@ -313,11 +313,11 @@ impl Scene {
 }
 
 #[cfg(feature = "3d")]
-fn uvs(i: &RayIntersection) -> Option<Pnt2<Scalar>> {
+fn uvs(i: &RayIntersection<Scalar, Vect>) -> Option<Pnt2<Scalar>> {
     i.uvs.clone()
 }
 
 #[cfg(not(feature = "3d"))]
-fn uvs(_: &RayIntersection) -> Option<Pnt2<Scalar>> {
+fn uvs(_: &RayIntersection<Scalar, Vect>) -> Option<Pnt2<Scalar>> {
     None
 }

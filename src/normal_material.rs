@@ -1,5 +1,5 @@
 use na::{Pnt2, Pnt4};
-use ncollide::math::{Scalar, Point, Vect};
+use math::{Scalar, Point, Vect};
 use material::Material;
 
 pub struct NormalMaterial;
