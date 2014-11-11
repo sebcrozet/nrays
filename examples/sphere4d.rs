@@ -8,7 +8,7 @@ use std::sync::Arc;
 use std::io::fs::File;
 use na::{Iso4, Pnt3, Pnt4, Vec3, Vec4};
 use ncollide::ray::Ray;
-use ncollide::geom::{Ball, Cuboid, Cone, Cylinder};
+use ncollide::shape::{Ball, Cuboid, Cone, Cylinder};
 use nrays::scene_node::SceneNode;
 use nrays::material::Material;
 use nrays::phong_material::PhongMaterial;

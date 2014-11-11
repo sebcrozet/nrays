@@ -87,10 +87,10 @@ impl Texture2d {
                 let found;
 
                 if opacity {
-                   found = tm.loaded_transparent.find(&path.as_str().unwrap().to_string());
+                   found = tm.loaded_transparent.get(&path.as_str().unwrap().to_string());
                 }
                 else {
-                   found = tm.loaded_opaque.find(&path.as_str().unwrap().to_string());
+                   found = tm.loaded_opaque.get(&path.as_str().unwrap().to_string());
                 }
 
                 res = match found {
@@ -251,8 +251,8 @@ impl Texture2d {
                 let dr = self.at(hig_ux, low_uy);
                 let dl = self.at(low_ux, low_uy);
 
-                let u_interpol = ul * (1.0 - shift_ux) + *ur.as_vec() * shift_ux;
-                let d_interpol = dl * (1.0 - shift_ux) + *dr.as_vec() * shift_ux;
+                let u_interpol = *ul * (1.0 - shift_ux) + *ur.as_vec() * shift_ux;
+                let d_interpol = *dl * (1.0 - shift_ux) + *dr.as_vec() * shift_ux;
 
                 u_interpol * shift_uy + *d_interpol.as_vec() * (1.0 - shift_uy)
             }

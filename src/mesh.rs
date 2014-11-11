@@ -64,7 +64,7 @@ impl<T: Sync + Send + Clone> StorageLocation<T> {
     pub fn write_cow<'r>(&'r mut self, f: |&mut T| -> ()) {
         match *self {
             SharedImmutable(ref mut s) => {
-                let mut cpy = s.deref().clone();
+                let mut cpy = (**s).clone();
                 f(&mut cpy);
 
                 *s = Arc::new(cpy);

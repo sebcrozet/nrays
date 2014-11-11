@@ -107,7 +107,7 @@ impl Material for PhongMaterial {
                 let mut ldir = pos - *point;
                 let     dist = ldir.normalize() - na::cast(0.001f64);
 
-                match scene.intersects_ray(&Ray::new(point + ldir * na::cast::<f32, Scalar>(0.001), ldir.clone()), dist) {
+                match scene.intersects_ray(&Ray::new(*point + ldir * na::cast::<f32, Scalar>(0.001), ldir.clone()), dist) {
                     None         => { },
                     Some(filter) => {
                         let dot_ldir_norm = na::dot(&ldir, normal);
@@ -120,7 +120,7 @@ impl Material for PhongMaterial {
                         let diffuse = diffuse_color * dcoeff;
 
                         // specular
-                        let lproj = normal * dot_ldir_norm;
+                        let lproj = *normal * dot_ldir_norm;
                         let rldir = na::normalize(&(-ldir + lproj * na::cast::<f32, Scalar>(2.0)));
 
                         let scoeff: f32 = NumCast::from(-na::dot(&rldir, &ray.ray.dir)).expect("[1] Conversion failed.");
@@ -128,10 +128,10 @@ impl Material for PhongMaterial {
                             let scoeff   = scoeff.clone().powf(self.shininess);
                             let specular = self.specular_color * scoeff;
 
-                            acc = acc + light.color.as_vec() * filter * (diffuse + *specular.as_vec());
+                            acc = acc + *light.color.as_vec() * filter * (diffuse + *specular.as_vec());
                         }
                         else {
-                            acc = acc + light.color.as_vec() * filter * diffuse;
+                            acc = acc + *light.color.as_vec() * filter * diffuse;
                         }
                     }
                 }

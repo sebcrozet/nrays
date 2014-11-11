@@ -8,7 +8,7 @@ use std::str::Words;
 use std::from_str::FromStr;
 use std::io::IoResult;
 use std::collections::HashMap;
-use std::collections::hashmap::{Occupied, Vacant};
+use std::collections::hash_map::Entry;
 use na::{Vec3, Vec2, Indexable};
 use na;
 use mesh::{Mesh, SharedImmutable};
@@ -110,7 +110,7 @@ fn parse_usemtl<'a>(l:          uint,
     let mname = mname.connect(" ");
     let none  = "None";
     if mname.as_slice() != none.as_slice() {
-        match mtllib.find(&mname) {
+        match mtllib.get(&mname) {
             None    => {
                 *curr_mtl = None;
                 warn(l, format!("could not find the material {}", mname).as_slice());
@@ -208,9 +208,9 @@ fn parse_f<'a>(l:              uint,
 
         if i > 2 {
             // on the fly triangulation as trangle fan
-            let g = groups_ids.get_mut(curr_group);
-            let p1 = (*g)[g.len() - i];
-            let p2 = (*g)[g.len() - 1];
+            let g = &mut groups_ids[curr_group];
+            let p1 = g[g.len() - i];
+            let p2 = g[g.len() - 1];
             g.push(p1);
             g.push(p2);
         }
@@ -249,7 +249,7 @@ fn parse_f<'a>(l:              uint,
             z = curr_ids.z as u32;
         }
 
-        groups_ids.get_mut(curr_group).push(Vec3::new(x, y, z));
+        groups_ids[curr_group].push(Vec3::new(x, y, z));
 
         i = i + 1;
     }
@@ -258,7 +258,7 @@ fn parse_f<'a>(l:              uint,
     if i < 2 {
         for _ in range(0u, 3 - i) {
             let last = (*groups_ids)[curr_group].last().unwrap().clone();
-            groups_ids.get_mut(curr_group).push(last);
+            groups_ids[curr_group].push(last);
         }
     }
 }
@@ -291,8 +291,8 @@ fn parse_g<'a>(_:          uint,
     let name   = if suffix.len() == 0 { prefix.to_string() } else { format!("{}/{}", prefix, suffix) };
 
     match groups.entry(name) {
-        Occupied(entry) => *entry.into_mut(),
-        Vacant(entry) => {
+        Entry::Occupied(entry) => *entry.into_mut(),
+        Entry::Vacant(entry) => {
             groups_ids.push(Vec::new());
             *entry.set(groups_ids.len() - 1)
         }
@@ -318,10 +318,10 @@ fn reformat(coords:     Vec<Coord>,
 
     for (name, i) in groups.into_iter() {
         names.push(name);
-        mtls.push(group2mtl.find(&i).map(|m| m.clone()));
+        mtls.push(group2mtl.get(&i).map(|m| m.clone()));
 
         for point in groups_ids[i].iter() {
-            let idx = match vt2id.find(point) {
+            let idx = match vt2id.get(point) {
                 Some(i) => { vertex_ids.push(*i); None },
                 None    => {
                     let idx = resc.len() as u32;

@@ -116,7 +116,7 @@ pub fn render(scene:         &Arc<Scene>,
                     let j = ipt / resx;
                     let i = ipt - j * resx;
 
-                    *bpixels.get_mut(i + j * resx as uint) = pxs[ipt - low_limit];
+                    bpixels[i + j * resx as uint] = pxs[ipt - low_limit];
                 }
             }
 
@@ -268,13 +268,13 @@ impl Scene {
     #[inline]
     fn trace_reflection(&self, mix: f32, attenuation: f32, ray: &RayWithEnergy, pt: &Point, normal: &Vect) -> Vec3<f32> {
         if !mix.is_zero() && ray.energy > 0.1 {
-            let nproj      = normal * na::dot(&ray.ray.dir, normal);
+            let nproj      = *normal * na::dot(&ray.ray.dir, normal);
             let rdir       = ray.ray.dir - nproj * na::cast::<f32, Scalar>(2.0);
             let new_energy = ray.energy - attenuation;
 
             self.trace(
                 &RayWithEnergy::new_with_energy(
-                    pt + rdir * na::cast::<f32, Scalar>(0.001),
+                    *pt + rdir * na::cast::<f32, Scalar>(0.001),
                     rdir,
                     ray.refr.clone(),
                     new_energy))
@@ -299,10 +299,10 @@ impl Scene {
                 n2 = na::cast(1.0f64);
             }
 
-            let dir_along_normal = normal * na::dot(&ray.ray.dir, normal);
+            let dir_along_normal = *normal * na::dot(&ray.ray.dir, normal);
             let tangent = ray.ray.dir - dir_along_normal;
             let new_dir = na::normalize(&(dir_along_normal + tangent * (n2 / n1)));
-            let new_pt  = pt + new_dir * 0.001f64;
+            let new_pt  = *pt + new_dir * 0.001f64;
 
             self.trace(&RayWithEnergy::new_with_energy(new_pt, new_dir, n2, ray.energy))
         }

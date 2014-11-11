@@ -18,11 +18,11 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use na::{Pnt2, Pnt3, Vec2, Vec3, Iso3, Persp3, Translate};
 use ncollide::bounding_volume::{AABB, HasAABB, implicit_shape_aabb};
-use ncollide::geom::{Plane, Ball, Cone, Cylinder, Capsule, Cuboid, Mesh, Mesh3d};
-use ncollide::implicit::Implicit;
-use ncollide::ray::{Ray3d, RayCast, LocalRayCast, RayIntersection3d, implicit_toi_and_normal_with_ray};
-use ncollide::narrow::algorithm::johnson_simplex::JohnsonSimplex;
-use ncollide::geom::Geom;
+use ncollide::shape::{Plane, Ball, Cone, Cylinder, Capsule, Cuboid, Mesh, Mesh3};
+use ncollide::shape::Shape;
+use ncollide::support_map::SupportMap;
+use ncollide::ray::{Ray3, RayCast, LocalRayCast, RayIntersection3, implicit_toi_and_normal_with_ray};
+use ncollide::geometry::algorithms::johnson_simplex::JohnsonSimplex;
 use nrays::scene_node::SceneNode;
 use nrays::material::Material;
 use nrays::normal_material::NormalMaterial;
@@ -101,13 +101,13 @@ fn main() {
 //
 enum Mode {
     LightMode,
-    GeomMode,
+    ShapeMode,
     CameraMode,
     NoMode
 }
 
 #[deriving(Clone)]
-enum Geometry {
+enum Shapeetry {
     GBall(f64),
     GPlane(Vec3<f64>),
     GCuboid(Vec3<f64>),
@@ -143,7 +143,7 @@ impl Camera {
 
 struct Properties {
     superbloc:  uint,
-    geom:       Vec<(uint, Geometry)>,
+    geom:       Vec<(uint, Shapeetry)>,
     pos:        Option<(uint, Pnt3<f64>)>,
     angle:      Option<(uint, Vec3<f64>)>,
     material:   Option<(uint, String)>,
@@ -235,7 +235,7 @@ fn parse(string: &str) -> (Vec<Light>, Vec<Arc<SceneNode>>, Vec<Camera>) {
                         "geometry" => {
                             let old = mem::replace(&mut props, Properties::new(l));
                             register(&mode, old, &mut mtllib, &mut lights, &mut nodes, &mut cameras);
-                            mode  = GeomMode;
+                            mode  = ShapeMode;
                         },
                         "camera"   => {
                             let old = mem::replace(&mut props, Properties::new(l));
@@ -289,7 +289,7 @@ fn register(mode:    &Mode,
             cameras: &mut Vec<Camera>) {
     match *mode {
         LightMode  => register_light(props, lights),
-        GeomMode   => register_geometry(props, mtllib, nodes),
+        ShapeMode   => register_geometry(props, mtllib, nodes),
         CameraMode => register_camera(props, cameras),
         NoMode     => register_nothing(props),
     }
@@ -447,7 +447,7 @@ fn register_geometry(props:  Properties,
         flat      = props.flat;
         let mname = props.material.as_ref().unwrap().ref1();
         special   = mname.as_slice() == "uvs" || mname.as_slice() == "normals";
-        let (a, m)= mtllib.find(mname).unwrap_or_else(|| panic!("Attempted to use an unknown material: {}", *mname)).clone();
+        let (a, m)= mtllib.get(mname).unwrap_or_else(|| panic!("Attempted to use an unknown material: {}", *mname)).clone();
 
         alpha    = a;
         material = m;
@@ -475,11 +475,11 @@ fn register_geometry(props:  Properties,
 
         for &(ref l, ref g) in props.geom.iter() {
             match *g {
-                GBall(ref r) => geoms.push(box Ball::new(*r) as Box<ImplicitGeom + Send + Sync>),
-                GCuboid(ref rs) => geoms.push(box Cuboid::new(*rs) as Box<ImplicitGeom + Send + Sync>),
-                GCylinder(ref h, ref r) => geoms.push(box Cylinder::new(*h, *r) as Box<ImplicitGeom + Send + Sync>),
-                GCapsule(ref h, ref r) => geoms.push(box Capsule::new(*h, *r) as Box<ImplicitGeom + Send + Sync>),
-                GCone(ref h, ref r) => geoms.push(box Cone::new(*h, *r) as Box<ImplicitGeom + Send + Sync>),
+                GBall(ref r) => geoms.push(box Ball::new(*r) as Box<SupportMapShape + Send + Sync>),
+                GCuboid(ref rs) => geoms.push(box Cuboid::new(*rs) as Box<SupportMapShape + Send + Sync>),
+                GCylinder(ref h, ref r) => geoms.push(box Cylinder::new(*h, *r) as Box<SupportMapShape + Send + Sync>),
+                GCapsule(ref h, ref r) => geoms.push(box Capsule::new(*h, *r) as Box<SupportMapShape + Send + Sync>),
+                GCone(ref h, ref r) => geoms.push(box Cone::new(*h, *r) as Box<SupportMapShape + Send + Sync>),
                 _ => println!("Warning: unsuported geometry on a minkosky sum at line {}.", *l)
             }
         }
@@ -523,7 +523,7 @@ fn register_geometry(props:  Properties,
                     let faces = o.mut_faces().unwrap();
                     let faces = Arc::new(faces.iter().flat_map(|a| vec!(a.x as uint, a.y as uint, a.z as uint).into_iter()).collect());
 
-                    let mesh: Box<Mesh3d>;
+                    let mesh: Box<Mesh3<f64>>;
                     
                     if flat {
                         mesh = box Mesh::new(coords.clone(), faces, Some(uvs.clone()), None);
@@ -625,59 +625,59 @@ fn parse_duet<'a>(l: uint, mut ws: Words<'a>) -> Vec2<f64> {
     Vec2::new(x, y)
 }
 
-fn parse_ball<'a>(l: uint, ws: Words<'a>) -> Geometry {
+fn parse_ball<'a>(l: uint, ws: Words<'a>) -> Shapeetry {
     let radius = parse_number(l, ws);
 
     GBall(radius)
 }
 
-fn parse_box<'a>(l: uint, ws: Words<'a>) -> Geometry {
+fn parse_box<'a>(l: uint, ws: Words<'a>) -> Shapeetry {
     let extents = parse_triplet(l, ws);
 
     GCuboid(extents)
 }
 
-fn parse_plane<'a>(l: uint, ws: Words<'a>) -> Geometry {
+fn parse_plane<'a>(l: uint, ws: Words<'a>) -> Shapeetry {
     let normal = na::normalize(&parse_triplet(l, ws));
 
     GPlane(normal)
 }
 
-fn parse_cylinder<'a>(l: uint, ws: Words<'a>) -> Geometry {
+fn parse_cylinder<'a>(l: uint, ws: Words<'a>) -> Shapeetry {
     let v = parse_duet(l, ws);
 
     GCylinder(v.x, v.y)
 }
 
-fn parse_capsule<'a>(l: uint, ws: Words<'a>) -> Geometry {
+fn parse_capsule<'a>(l: uint, ws: Words<'a>) -> Shapeetry {
     let v = parse_duet(l, ws);
 
     GCapsule(v.x, v.y)
 }
 
-fn parse_cone<'a>(l: uint, ws: Words<'a>) -> Geometry {
+fn parse_cone<'a>(l: uint, ws: Words<'a>) -> Shapeetry {
     let v = parse_duet(l, ws);
 
     GCone(v.x, v.y)
 }
 
-fn parse_obj<'a>(l: uint, mut ws: Words<'a>) -> Geometry {
+fn parse_obj<'a>(l: uint, mut ws: Words<'a>) -> Shapeetry {
     let objpath = ws.next().unwrap_or_else(|| error(l, "2 paths were expected, found 0."));
     let mtlpath = ws.next().unwrap_or_else(|| error(l, "2 paths were expected, found 1."));
 
     GObj(objpath.to_string(), mtlpath.to_string())
 }
 
-trait ImplicitGeom : Implicit<Point, Vect, Matrix> + Geom<Scalar, Point, Vect, Matrix> { }
+trait SupportMapShape : SupportMap<Point, Vect, Matrix> + Shape<Scalar, Point, Vect, Matrix> { }
 
-impl<T: Implicit<Point, Vect, Matrix> + Geom<Scalar, Point, Vect, Matrix>> ImplicitGeom for T { }
+impl<T: SupportMap<Point, Vect, Matrix> + Shape<Scalar, Point, Vect, Matrix>> SupportMapShape for T { }
 
 struct MinkowksiSum {
-    geoms: Vec<Box<ImplicitGeom + Sync + Send>>
+    geoms: Vec<Box<SupportMapShape + Sync + Send>>
 }
 
 impl MinkowksiSum {
-    pub fn new(geoms: Vec<Box<ImplicitGeom + Sync + Send>>) -> MinkowksiSum {
+    pub fn new(geoms: Vec<Box<SupportMapShape + Sync + Send>>) -> MinkowksiSum {
         MinkowksiSum {
             geoms: geoms
         }
@@ -690,7 +690,7 @@ impl HasAABB<Point, Matrix> for MinkowksiSum {
     }
 }
 
-impl Implicit<Point, Vect, Matrix> for MinkowksiSum {
+impl SupportMap<Point, Vect, Matrix> for MinkowksiSum {
     fn support_point(&self, transform: &Matrix, dir: &Vect) -> Point {
         let mut pt  = na::orig::<Point>();
         let new_dir = na::inv_rotate(transform, dir);
@@ -704,7 +704,7 @@ impl Implicit<Point, Vect, Matrix> for MinkowksiSum {
 }
 
 impl LocalRayCast<Scalar, Point, Vect> for MinkowksiSum {
-    fn toi_and_normal_with_ray(&self, ray: &Ray3d, solid: bool) -> Option<RayIntersection3d> {
+    fn toi_and_normal_with_ray(&self, ray: &Ray3<f64>, solid: bool) -> Option<RayIntersection3<f64>> {
         implicit_toi_and_normal_with_ray(&na::one(), self, &mut JohnsonSimplex::<Scalar, Point, Vect>::new_w_tls(), ray, solid)
     }
 }
