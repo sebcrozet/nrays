@@ -37,9 +37,9 @@ a hypercube, hypersphere, hypercone and hypercylinder:
 
 ![4d ray tracing](http://crozet.re/nrays/render4d.png)
 
-The voxel grid is visualized with [ParaView](www.paraview.org) and uses false colors and
+The voxel grid is visualized with [ParaView](http://www.paraview.org) and uses false colors and
 transparency to render the volumes. To visualize this scene yourself, the data file is available
-[here](www.crozet.re/nrays/render.4d) and ParaView should import the file as a _Raw (binary) file_
+[here](http://www.crozet.re/nrays/render.4d) and ParaView should import the file as a _Raw (binary) file_
 and use the following settings:
   * Data Extents: 0, 99 (for the three extents)
   * Data Scalar Type: float
