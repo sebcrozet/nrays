@@ -13,17 +13,15 @@ casting on the Minkowski sum of a cylinder and a box:
 ![3d ray tracing](http://crozet.re/nrays/render3d.png)
 
 Several examples are given on the `bin` folder. Those are `.scene` files that can be read by the
-`loader3d` executable produced by the command `make test`. Those scenes require some assets
+`loader3d` executable produced by the command `make`. Those scenes require some assets
 originally available [here](http://graphics.cs.williams.edu/data/meshes.xml). The whole set of
 asset is packaged [here](https://www.dropbox.com/s/hts81ejea7quxes/media.tar.bz2) and has to be
 extracted on the `bin` folder. Here is an example of commands you might type the first time:
 
 ```
-git clone --recursive git://github.com/sebcrozet/nrays.git
+git clone git://github.com/sebcrozet/nrays.git
 cd nrays
-make deps
 make
-make test
 cd bin
 wget https://www.dropbox.com/s/hts81ejea7quxes/media.tar.bz2
 tar xf media.tar.bz2
