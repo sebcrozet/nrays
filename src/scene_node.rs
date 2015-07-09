@@ -17,13 +17,13 @@ pub struct SceneNode {
     pub solid:           bool,
     pub material:        Arc<Box<Material + Sync + Send>>,
     pub transform:       Matrix,
-    pub geometry:        Box<RayCast<Scalar, Point, Vect, Matrix> + Sync + Send>,
+    pub geometry:        Box<RayCast<Point, Matrix> + Sync + Send>,
     pub aabb:            AABB<Point>,
     pub nmap:            Option<Texture2d>
 }
 
 impl SceneNode {
-    pub fn new<G: 'static + Send + Sync + RayCast<Scalar, Point, Vect, Matrix> + HasAABB<Point, Matrix>>(
+    pub fn new<G: 'static + Send + Sync + RayCast<Point, Matrix> + HasAABB<Point, Matrix>>(
                material:        Arc<Box<Material + Sync + Send>>,
                refl_mix:        f32,
                refl_atenuation: f32,
@@ -41,7 +41,7 @@ impl SceneNode {
             refr_coeff:      refr_coeff,
             material:        material,
             aabb:            geometry.aabb(&transform),
-            geometry:        geometry as Box<RayCast<Scalar, Point, Vect, Matrix> + Sync + Send>,
+            geometry:        geometry as Box<RayCast<Point, Matrix> + Sync + Send>,
             transform:       transform,
             nmap:            nmap,
             solid:           solid
@@ -52,8 +52,8 @@ impl SceneNode {
 
 #[cfg(feature = "3d")]
 impl SceneNode {
-    pub fn cast(&self, r: &Ray<Point, Vect>) -> Option<RayIntersection<Scalar, Vect>> {
-        let res = self.geometry.toi_and_normal_and_uv_with_transform_and_ray(&self.transform, r, self.solid);
+    pub fn cast(&self, r: &Ray<Point>) -> Option<RayIntersection<Vect>> {
+        let res = self.geometry.toi_and_normal_and_uv_with_ray(&self.transform, r, self.solid);
 
         if res.is_none() {
             return None;
@@ -64,20 +64,14 @@ impl SceneNode {
             Some(ref nmap) => {
                 let mut inter = res.unwrap();
 
-                match inter.uvs {
-                    None          => Some(inter),
-                    Some(ref uvs) => {
-                        let shift_color = nmap.sample(uvs);
-                        let shift       = (shift_color.x + shift_color.y + shift_color.z) / 3.0;
+                if let Some(ref uvs) = inter.uvs {
+                    let shift_color = nmap.sample(uvs);
+                    let shift       = (shift_color.x + shift_color.y + shift_color.z) / 3.0;
 
-                        inter.toi = inter.toi - na::cast(shift);
-                        // inter.normal.x = na::cast(cn.x); 
-                        // inter.normal.y = na::cast(cn.y); 
-                        // inter.normal.z = na::cast(cn.z); 
-
-                        Some(inter)
-                    }
+                    inter.toi = inter.toi - na::cast::<f32, Scalar>(shift);
                 }
+
+                Some(inter)
             }
         }
     }
@@ -85,10 +79,7 @@ impl SceneNode {
 
 #[cfg(feature = "4d")]
 impl SceneNode {
-    pub fn cast(&self, r: &Ray<Point, Vect>) -> Option<RayIntersection<Scalar, Vect>> {
-        self.geometry.toi_and_normal_with_transform_and_ray(
-            &self.transform,
-            r,
-            self.solid)
+    pub fn cast(&self, r: &Ray<Point>) -> Option<RayIntersection<Vect>> {
+        self.geometry.toi_and_normal_with_ray(&self.transform, r, self.solid)
     }
 }

@@ -1,23 +1,25 @@
 #[cfg(feature = "3d")]
-use rustrt::bookkeeping;
+use rand::random;
 #[cfg(feature = "3d")]
-use std::rand;
-#[cfg(feature = "3d")]
-use std::sync::RWLock;
+use std::sync::RwLock;
 #[cfg(feature = "3d")]
 use std::cmp;
 #[cfg(feature = "3d")]
-use std::rt;
+use std::thread;
+#[cfg(feature = "3d")]
+use std::iter;
 #[cfg(feature = "3d")]
 use na::{Pnt3, Pnt4, Vec2, Mat4};
-use std::num::Zero;
+#[cfg(feature = "3d")]
+use num_cpus::{self};
+use num::Zero;
 use std::sync::Arc;
-use na::{Pnt2, Vec3};
+use na::{Identity, Pnt2, Vec3};
 use na;
 use ncollide::bounding_volume::{AABB, HasAABB};
-use ncollide::partitioning::BVT;
+use ncollide::partitioning::{BVT, BVTCostFn};
 // use ncollide::partitioning::bvt_visitor::RayInterferencesCollector;
-use ncollide::ray::{Ray, RayIntersection};
+use ncollide::ray::{Ray, RayIntersection, RayCast};
 use math::{Scalar, Point, Vect};
 use material::Material;
 use ray_with_energy::RayWithEnergy;
@@ -43,53 +45,48 @@ pub type Vless = Vec3<Scalar>;
 #[cfg(feature = "3d")]
 pub fn render(scene:         &Arc<Scene>,
               resolution:    &Vless,
-              ray_per_pixel: uint,
+              ray_per_pixel: usize,
               window_width:  Scalar,
               camera_eye:    Point,
               projection:    Mat4<Scalar>)
               -> Image {
     assert!(ray_per_pixel > 0);
 
-    let npixels: uint = NumCast::from(resolution.x * resolution.y).unwrap();
-    let pixels        = Vec::from_elem(npixels, na::zero());
-    let pixels        = Arc::new(RWLock::new(pixels));
+    let npixels: usize = na::cast(resolution.x * resolution.y);
+    let pixels         = iter::repeat(na::zero::<Vec3<f32>>()).take(npixels).collect();
+    let pixels: Arc<RwLock<Vec<Vec3<f32>>>> = Arc::new(RwLock::new(pixels));
 
     let nrays = resolution.y * resolution.x * (ray_per_pixel as f64);
 
-    println!("Tracing {} rays.", nrays as int);
+    println!("Tracing {} rays.", nrays as i32);
 
-
-    /*
-     *
-     * FIXME: we should use libgreen to do the repartition.
-     * However, it does not work very well at the moment.
-     *
-     */
-    let num_thread = rt::default_sched_threads();
-    let resx       = resolution.x as uint;
-    let resy       = resolution.y as uint;
+    let num_thread = num_cpus::get();
+    let resx       = resolution.x as usize;
+    let resy       = resolution.y as usize;
 
     let mpixels = pixels.clone();
     let mscene  = scene.clone();
 
-    for i in range(0u, num_thread) {
+    let mut children = Vec::new();
+
+    for i in 0 .. num_thread {
         let pixels    = mpixels.clone();
         let scene     = mscene.clone();
         let parts     = npixels / num_thread + 1;
         let low_limit = parts * i;
         let up_limit  = cmp::min(parts * (i + 1), npixels);
 
-        spawn(proc() {
+        children.push(thread::spawn(move || {
             let mut pxs = Vec::with_capacity(up_limit - low_limit);
-            for ipt in range(low_limit, up_limit) {
+            for ipt in low_limit .. up_limit {
                 let j = ipt / resx;
                 let i = ipt - j * resx;
 
                 let mut tot_c: Vec3<f32> = na::zero();
 
-                for _ in range(0u, ray_per_pixel) {
-                    let perturbation  = (rand::random::<Vless>() - na::cast::<f32, Scalar>(0.5)) * window_width;
-                    let orig: Vec2<Scalar> = Vec2::new(na::cast(i), na::cast(j)) + perturbation;
+                for _ in 0usize .. ray_per_pixel {
+                    let perturbation  = (random::<Vless>() - na::cast::<f32, Scalar>(0.5)) * window_width;
+                    let orig: Vec2<Scalar> = Vec2::new(na::cast::<usize, Scalar>(i), na::cast::<usize, Scalar>(j)) + perturbation;
 
                     /*
                      * unproject
@@ -106,27 +103,29 @@ pub fn render(scene:         &Arc<Scene>,
                     tot_c = tot_c + c;
                 }
 
-                pxs.push(tot_c / na::cast::<uint, f32>(ray_per_pixel));
+                pxs.push(tot_c / na::cast::<usize, f32>(ray_per_pixel));
             }
 
             {
-                let pxs = pxs.as_slice();
-                let mut bpixels = pixels.write();
-                for ipt in range(low_limit, up_limit) {
+                let pxs = &pxs[..];
+                let mut bpixels = pixels.write().unwrap();
+                for ipt in low_limit .. up_limit {
                     let j = ipt / resx;
                     let i = ipt - j * resx;
 
-                    bpixels[i + j * resx as uint] = pxs[ipt - low_limit];
+                    bpixels[i + j * resx as usize] = pxs[ipt - low_limit];
                 }
             }
 
-        })
+        }));
     }
 
-    // FIXME: this might not be the canonical way of doing that…
-    bookkeeping::wait_for_other_tasks();
+    for child in children.into_iter() {
+        let _ = child.join();
+    }
 
-    Image::new(resolution.clone(), pixels.read().clone())
+    let out_pixels = pixels.read().unwrap().clone();
+    Image::new(resolution.clone(), out_pixels)
 }
 
 impl Scene {
@@ -152,14 +151,15 @@ impl Scene {
     }
 
     #[inline]
-    pub fn lights<'a>(&'a self) -> &'a [Light] {
-        self.lights.as_slice()
+    pub fn lights(&self) -> &[Light] {
+        &self.lights[..]
     }
 }
 
 #[cfg(feature = "4d")]
 impl Scene {
-    pub fn render(&self, resolution: &Vless, unproject: |&Vless| -> Ray<Point, Vect>) -> Image {
+    pub fn render<F>(&self, resolution: &Vless, unproject: F) -> Image
+        where F: Fn(&Vless) -> Ray<Point> {
         let mut npixels: Scalar = na::one();
 
         for i in resolution.iter() {
@@ -173,16 +173,16 @@ impl Scene {
         //   * a cube for 4d rendering.
         //   * an hypercube for 5d rendering.
         //   * etc
-        let mut pixels    = Vec::with_capacity(NumCast::from(npixels.clone()).unwrap());
+        let mut pixels = Vec::with_capacity(na::cast(npixels.clone()));
 
-        for _ in range(0u, NumCast::from(npixels).unwrap()) {
+        for _ in 0usize .. na::cast(npixels) {
             // curr contains the index of the current sample point.
             let ray = unproject(&curr);
             let c   = self.trace(&RayWithEnergy::new(ray.orig.clone(), ray.dir));
             pixels.push(c);
 
-            for j in range(0u, na::dim::<Vless>()) {
-                let inc = curr[j] + na::one();
+            for j in 0 .. na::dim::<Vless>() {
+                let inc = curr[j] + na::one::<Scalar>();
 
                 if inc == resolution[j] {
                     curr[j] = na::zero();
@@ -199,35 +199,14 @@ impl Scene {
 }
 
 impl Scene {
-    pub fn intersects_ray(&self, ray: &Ray<Point, Vect>, maxtoi: Scalar) -> Option<Vec3<f32>> {
-        let mut filter = Vec3::new(1.0, 1.0, 1.0);
+    pub fn intersects_ray(&self, ray: &Ray<Point>, maxtoi: Scalar) -> Option<Vec3<f32>> {
+        let mut filter        = Vec3::new(1.0, 1.0, 1.0);
 
-        let inter = self.world.cast_ray(ray, &mut |b, r| {
-            // this will make a very coarce approximation of the transparent shadow.
-            // (occluded objects might show up)
-            match b.cast(r) {
-                Some(t) => {
-                    if t.toi <= maxtoi {
-                        let color = b.material.ambiant(&(ray.orig + ray.dir * t.toi), &t.normal, &uvs(&t));
-
-                        let alpha = color.w * b.alpha;
-
-                        if alpha < 1.0 {
-                            filter = filter * Vec3::new(color.x, color.y, color.z) * (1.0 - alpha);
-
-                            None
-                        }
-                        else {
-                            Some((t.toi, t.toi))
-                        }
-                    }
-                    else {
-                        None
-                    }
-                }
-                _ => None
-            }
-        });
+        let inter;
+        {
+            let mut shadow_caster = TransparentShadowsRayTOICostFn::new(ray, maxtoi, &mut filter);
+            inter = self.world.best_first_search(&mut shadow_caster);
+        }
 
         if inter.is_none() {
             Some(filter)
@@ -238,19 +217,18 @@ impl Scene {
     }
 
     pub fn trace(&self, ray: &RayWithEnergy) -> Vec3<f32> {
-        let cast = self.world.cast_ray(&ray.ray, &mut |b, r| { b.cast(r).map(|inter| (inter.toi, inter)) });
+        let cast = self.world.best_first_search(&mut ClosestRayTOICostFn::new(&ray.ray));
 
         match cast {
             None                 => self.background.clone(),
-            Some((_, inter, sn)) => {
-                let bsn       = sn.deref();
+            Some((sn, inter)) => {
                 let pt        = ray.ray.orig + ray.ray.dir * inter.toi;
-                let obj       = bsn.material.compute(ray, &pt, &inter.normal, &uvs(&inter), self);
-                let refl      = self.trace_reflection(bsn.refl_mix, bsn.refl_atenuation, ray, &pt, &inter.normal);
+                let obj       = sn.material.compute(ray, &pt, &inter.normal, &uvs(&inter), self);
+                let refl      = self.trace_reflection(sn.refl_mix, sn.refl_atenuation, ray, &pt, &inter.normal);
 
-                let alpha     = obj.w * bsn.alpha;
-                let obj_color = Vec3::new(obj.x, obj.y, obj.z) * (1.0 - bsn.refl_mix) + refl * bsn.refl_mix;
-                let refr      = self.trace_refraction(alpha, bsn.refr_coeff, ray, &pt, &inter.normal);
+                let alpha     = obj.w * sn.alpha;
+                let obj_color = Vec3::new(obj.x, obj.y, obj.z) * (1.0 - sn.refl_mix) + refl * sn.refl_mix;
+                let refr      = self.trace_refraction(alpha, sn.refr_coeff, ray, &pt, &inter.normal);
 
                 if alpha == 1.0 {
                     Vec3::new(obj_color.x, obj_color.y, obj_color.z)
@@ -313,11 +291,87 @@ impl Scene {
 }
 
 #[cfg(feature = "3d")]
-fn uvs(i: &RayIntersection<Scalar, Vect>) -> Option<Pnt2<Scalar>> {
+fn uvs(i: &RayIntersection<Vect>) -> Option<Pnt2<Scalar>> {
     i.uvs.clone()
 }
 
 #[cfg(not(feature = "3d"))]
-fn uvs(_: &RayIntersection<Scalar, Vect>) -> Option<Pnt2<Scalar>> {
+fn uvs(_: &RayIntersection<Vect>) -> Option<Pnt2<Scalar>> {
     None
+}
+
+/*
+ * Define our own cost functions as the Arc<SceneNode> does not implement the `RayCast` trait.
+ */
+pub struct ClosestRayTOICostFn<'a> {
+    ray:   &'a Ray<Point>
+}
+
+impl<'a> ClosestRayTOICostFn<'a> {
+    pub fn new(ray: &'a Ray<Point>) -> ClosestRayTOICostFn<'a> {
+        ClosestRayTOICostFn {
+            ray: ray
+        }
+    }
+}
+impl<'a> BVTCostFn<Scalar, Arc<SceneNode>, AABB<Point>, RayIntersection<Vect>> for ClosestRayTOICostFn<'a> {
+    #[inline]
+    fn compute_bv_cost(&mut self, bv: &AABB<Point>) -> Option<Scalar> {
+        bv.toi_with_ray(&Identity::new(), self.ray, true)
+    }
+
+    #[inline]
+    fn compute_b_cost(&mut self, b: &Arc<SceneNode>) -> Option<(Scalar, RayIntersection<Vect>)> {
+
+        b.cast(self.ray).map(|inter| (inter.toi, inter))
+    }
+}
+
+pub struct TransparentShadowsRayTOICostFn<'a> {
+    ray:    &'a Ray<Point>,
+    maxtoi: Scalar,
+    filter: &'a mut Vec3<f32>
+}
+
+impl<'a> TransparentShadowsRayTOICostFn<'a> {
+    pub fn new(ray: &'a Ray<Point>, maxtoi: Scalar, filter: &'a mut Vec3<f32>)
+        -> TransparentShadowsRayTOICostFn<'a> {
+        TransparentShadowsRayTOICostFn {
+            ray:    ray,
+            maxtoi: maxtoi,
+            filter: filter
+        }
+    }
+}
+impl<'a> BVTCostFn<Scalar, Arc<SceneNode>, AABB<Point>, ()>
+for TransparentShadowsRayTOICostFn<'a> {
+    #[inline]
+    fn compute_bv_cost(&mut self, bv: &AABB<Point>) -> Option<Scalar> {
+        bv.toi_with_ray(&Identity::new(), self.ray, true)
+    }
+
+    #[inline]
+    fn compute_b_cost(&mut self, b: &Arc<SceneNode>) -> Option<(Scalar, ())> {
+        match b.cast(self.ray) {
+            Some(t) => {
+                if t.toi <= self.maxtoi {
+                    let color = b.material.ambiant(&(self.ray.orig + self.ray.dir * t.toi), &t.normal, &uvs(&t));
+                    let alpha = color.w * b.alpha;
+
+                    if alpha < 1.0 {
+                        *self.filter = *self.filter * Vec3::new(color.x, color.y, color.z) * (1.0 - alpha);
+
+                        None
+                    }
+                    else {
+                        Some((t.toi, ()))
+                    }
+                }
+                else {
+                    None
+                }
+            }
+            _ => None
+        }
+    }
 }

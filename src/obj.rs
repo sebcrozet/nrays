@@ -1,69 +1,90 @@
 //! Simplistic obj loader.
 
+use std::fs::File;
+use std::str::{FromStr, Split};
+use std::io::Read;
+use std::io::Result as IoResult;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::num::Bounded;
-use std::io::fs::File;
-use std::io::Reader;
-use std::str::Words;
-use std::from_str::FromStr;
-use std::io::IoResult;
+use std::iter::{repeat, Filter};
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
-use na::{Vec3, Vec2, Indexable};
+use na::{Pnt3, Vec3, Pnt2, Bounded};
 use na;
-use mesh::{Mesh, SharedImmutable};
+use mesh::{Mesh, StorageLocation};
 use mesh;
 use mtl::MtlMaterial;
 use mtl;
 
-pub type Coord  = Vec3<f32>;
+/// The type of vertex coordinates.
+pub type Coord  = Pnt3<f32>;
+/// The type of normals.
 pub type Normal = Vec3<f32>;
-pub type UV     = Vec2<f32>;
+/// The type of texture coordinates.
+pub type UV     = Pnt2<f32>;
 
-fn error(line: uint, err: &str) -> ! {
-    panic!("At line {}: {:s}", line, err)
+/// Iterator through words.
+pub type Words<'a> = Filter<Split<'a, fn(char) -> bool>, fn(&&str) -> bool>;
+
+// FIXME: replace by split_whitespaces from rust 1.1
+/// Returns an iterator through all the words of a string.
+pub fn split_words<'a>(s: &'a str) -> Words<'a> {
+    fn is_not_empty(s: &&str) -> bool { !s.is_empty() }
+    let is_not_empty: fn(&&str) -> bool = is_not_empty; // coerce to fn pointer
+
+    fn is_whitespace(c: char) -> bool { c.is_whitespace() }
+    let is_whitespace: fn(char) -> bool = is_whitespace; // coerce to fn pointer!s.is_empty())
+
+    s.split(is_whitespace).filter(is_not_empty)
 }
 
-fn warn(line: uint, err: &str) {
-    println!("At line {}: {:s}", line, err)
+fn error(line: usize, err: &str) -> ! {
+    panic!("At line {}: {}", line, err)
+}
+
+fn warn(line: usize, err: &str) {
+    println!("At line {}: {}", line, err)
 }
 
 /// Parses an obj file.
 pub fn parse_file(path: &Path, mtl_base_dir: &Path, basename: &str) -> IoResult<Vec<(String, Mesh, Option<MtlMaterial>)>> {
     match File::open(path) {
-        Ok(mut file) => file.read_to_string().map(|obj| parse(obj.as_slice(), mtl_base_dir, basename)),
+        Ok(mut file) => {
+            let mut sfile = String::new();
+            file.read_to_string(&mut sfile).map(|_| parse(&sfile[..], mtl_base_dir, basename))
+        },
         Err(e)       => Err(e)
     }
 }
 
 /// Parses a string representing an obj file.
 pub fn parse(string: &str, mtl_base_dir: &Path, basename: &str) -> Vec<(String, Mesh, Option<MtlMaterial>)> {
-    let mut coords:     Vec<Coord>            = Vec::new();
-    let mut normals:    Vec<Normal>           = Vec::new();
-    let mut uvs:        Vec<UV>               = Vec::new();
-    let mut groups:     HashMap<String, uint> = HashMap::new();
-    let mut groups_ids: Vec<Vec<Vec3<u32>>>   = Vec::new();
-    let mut curr_group: uint                  = 0;
-    let mut ignore_normals                    = false;
-    let mut ignore_uvs                        = false;
-    let mut mtllib                            = HashMap::new();
-    let mut group2mtl                         = HashMap::new();
-    let mut curr_mtl                          = None::<MtlMaterial>;
+    let mut coords:     Vec<Coord>             = Vec::new();
+    let mut normals:    Vec<Normal>            = Vec::new();
+    let mut uvs:        Vec<UV>                = Vec::new();
+    let mut groups:     HashMap<String, usize> = HashMap::new();
+    let mut groups_ids: Vec<Vec<Pnt3<usize>>>  = Vec::new();
+    let mut curr_group: usize                  = 0;
+    let mut ignore_normals                     = false;
+    let mut ignore_uvs                         = false;
+    let mut mtllib                             = HashMap::new();
+    let mut group2mtl                          = HashMap::new();
+    let mut curr_mtl                           = None::<MtlMaterial>;
 
     groups_ids.push(Vec::new());
-    groups.insert(basename.to_string(), 0);
+    let _ = groups.insert(basename.to_string(), 0);
 
     for (l, line) in string.lines_any().enumerate() {
-        let mut words = line.words();
+        let mut words = split_words(line);
         let tag = words.next();
         match tag {
             None    => { },
             Some(w) => {
                 if w.len() != 0 && w.as_bytes()[0] != ('#' as u8) {
                     match w {
-                        "v"      => coords.push(parse_v_or_vn(l, words)),
+                        "v"      => coords.push(na::orig::<Pnt3<f32>>() + parse_v_or_vn(l, words)),
                         "vn"     => if !ignore_normals { normals.push(parse_v_or_vn(l, words)) },
-                        "f"      => parse_f(l, words, coords.as_slice(), uvs.as_slice(), normals.as_slice(), &mut ignore_uvs, &mut ignore_normals, &mut groups_ids, curr_group),
+                        "f"      => parse_f(l, words, &coords[..], &uvs[..], &normals[..], &mut ignore_uvs, &mut ignore_normals, &mut groups_ids, curr_group),
                         "vt"     => if !ignore_uvs { uvs.push(parse_vt(l, words)) },
                         "g"      => {
                             curr_group = parse_g(l, words, basename, &mut groups, &mut groups_ids);
@@ -72,7 +93,7 @@ pub fn parse(string: &str, mtl_base_dir: &Path, basename: &str) -> Vec<(String, 
                         "mtllib" => parse_mtllib(l, words, mtl_base_dir, &mut mtllib),
                         "usemtl" => curr_group = parse_usemtl(l, words, curr_group, &mtllib, &mut group2mtl, &mut groups, &mut groups_ids, &mut curr_mtl),
                         _         => {
-                            println!("Warning: unknown line {} ignored: `{:s}'", l, line);
+                            println!("Warning: unknown line {} ignored: `{}'", l, line);
                         }
                     }
                 }
@@ -97,29 +118,29 @@ pub fn parse(string: &str, mtl_base_dir: &Path, basename: &str) -> Vec<(String, 
         group2mtl)
 }
 
-fn parse_usemtl<'a>(l:          uint,
-                    mut ws:     Words<'a>,
-                    curr_group: uint,
+fn parse_usemtl<'a>(l:          usize,
+                    ws:         Words<'a>,
+                    curr_group: usize,
                     mtllib:     &HashMap<String, MtlMaterial>,
-                    group2mtl:  &mut HashMap<uint, MtlMaterial>,
-                    groups:     &mut HashMap<String, uint>,
-                    groups_ids: &mut Vec<Vec<Vec3<u32>>>,
+                    group2mtl:  &mut HashMap<usize, MtlMaterial>,
+                    groups:     &mut HashMap<String, usize>,
+                    groups_ids: &mut Vec<Vec<Pnt3<usize>>>,
                     curr_mtl:   &mut Option<MtlMaterial>)
-                    -> uint {
+                    -> usize {
     let mname: Vec<&'a str> = ws.collect();
     let mname = mname.connect(" ");
     let none  = "None";
-    if mname.as_slice() != none.as_slice() {
+    if mname[..] != none[..] {
         match mtllib.get(&mname) {
             None    => {
                 *curr_mtl = None;
-                warn(l, format!("could not find the material {}", mname).as_slice());
+                warn(l, &format!("could not find the material {}", mname)[..]);
 
                 curr_group
             },
             Some(m) => {
                 if !group2mtl.contains_key(&curr_group) {
-                    group2mtl.insert(curr_group, m.clone());
+                    let _ = group2mtl.insert(curr_group, m.clone());
                     *curr_mtl = Some(m.clone());
                     curr_group
                 }
@@ -127,10 +148,11 @@ fn parse_usemtl<'a>(l:          uint,
                     // multiple usemtls for one group
                     // NOTE: this is a violation of the obj specification, but we support it anyway
                     let mut g = curr_group.to_string();
-                    g.push_str(mname.as_slice());
-                    let new_group = parse_g(l, g.as_slice().words(), "auto_generated_group_", groups, groups_ids);
+                    g.push_str(&mname[..]);
 
-                    group2mtl.insert(new_group, m.clone());
+                    let new_group = parse_g(l, split_words(&g[..]), "auto_generated_group_", groups, groups_ids);
+
+                    let _ = group2mtl.insert(new_group, m.clone());
                     *curr_mtl = Some(m.clone());
 
                     new_group
@@ -144,15 +166,15 @@ fn parse_usemtl<'a>(l:          uint,
     }
 }
 
-fn parse_mtllib<'a>(l:            uint,
-                    mut ws:       Words<'a>,
+fn parse_mtllib<'a>(l:            usize,
+                    ws:           Words<'a>,
                     mtl_base_dir: &Path,
                     mtllib:       &mut HashMap<String, MtlMaterial>) {
     let filename: Vec<&'a str> = ws.collect();
     let filename = filename.connect(" ");
 
-    let mut path = mtl_base_dir.clone();
-
+    let mut path = PathBuf::new();
+    path.push(mtl_base_dir);
     path.push(filename);
 
     let ms = mtl::parse_file(&path);
@@ -160,37 +182,37 @@ fn parse_mtllib<'a>(l:            uint,
     match ms {
         Ok(ms) =>
             for m in ms.into_iter() {
-                mtllib.insert(m.name.to_string(), m);
+                let _ = mtllib.insert(m.name.to_string(), m);
             },
-        Err(err) => warn(l, format!("{}", err).as_slice())
+        Err(err) => warn(l, &format!("{}", err)[..])
     }
 }
 
-fn parse_v_or_vn<'a>(l: uint, mut ws: Words<'a>) -> Vec3<f32> {
+fn parse_v_or_vn<'a>(l: usize, mut ws: Words<'a>) -> Vec3<f32> {
     let sx = ws.next().unwrap_or_else(|| error(l, "3 components were expected, found 0."));
     let sy = ws.next().unwrap_or_else(|| error(l, "3 components were expected, found 1."));
     let sz = ws.next().unwrap_or_else(|| error(l, "3 components were expected, found 2."));
 
-    let x: Option<f32> = FromStr::from_str(sx);
-    let y: Option<f32> = FromStr::from_str(sy);
-    let z: Option<f32> = FromStr::from_str(sz);
+    let x: Result<f32, _> = FromStr::from_str(sx);
+    let y: Result<f32, _> = FromStr::from_str(sy);
+    let z: Result<f32, _> = FromStr::from_str(sz);
 
-    let x = x.unwrap_or_else(|| error(l, format!("failed to parse `{}' as a f32.", sx).as_slice()));
-    let y = y.unwrap_or_else(|| error(l, format!("failed to parse `{}' as a f32.", sy).as_slice()));
-    let z = z.unwrap_or_else(|| error(l, format!("failed to parse `{}' as a f32.", sz).as_slice()));
+    let x = x.unwrap_or_else(|e| error(l, &format!("failed to parse `{}' as a f32: {}", sx, e)[..]));
+    let y = y.unwrap_or_else(|e| error(l, &format!("failed to parse `{}' as a f32: {}", sy, e)[..]));
+    let z = z.unwrap_or_else(|e| error(l, &format!("failed to parse `{}' as a f32: {}", sz, e)[..]));
 
     Vec3::new(x, y, z)
 }
 
-fn parse_f<'a>(l:              uint,
-               mut ws:         Words<'a>,
-               coords:         &[Vec3<f32>],
-               uvs:            &[Vec2<f32>],
+fn parse_f<'a>(l:              usize,
+               ws:             Words<'a>,
+               coords:         &[Pnt3<f32>],
+               uvs:            &[Pnt2<f32>],
                normals:        &[Vec3<f32>],
                ignore_uvs:     &mut bool,
                ignore_normals: &mut bool,
-               groups_ids:     &mut Vec<Vec<Vec3<u32>>>,
-               curr_group:     uint) {
+               groups_ids:     &mut Vec<Vec<Pnt3<usize>>>,
+               curr_group:     usize) {
     // Four formats possible: v   v/t   v//n   v/t/n
     let mut i = 0;
     for word in ws {
@@ -198,10 +220,10 @@ fn parse_f<'a>(l:              uint,
 
         for (i, w) in word.split('/').enumerate() {
             if i == 0 || w.len() != 0 {
-                let idx: Option<i32> = FromStr::from_str(w);
+                let idx: Result<i32, _> = FromStr::from_str(w);
                 match idx {
-                    Some(id) => curr_ids[i] = id - 1,
-                    None     => error(l, format!("failed to parse `{}' as a i32.", w).as_slice())
+                    Ok(id) => curr_ids[i] = id - 1,
+                    Err(e) => error(l, &format!("failed to parse `{}' as a i32: {}", w, e)[..])
                 }
             }
         }
@@ -209,8 +231,8 @@ fn parse_f<'a>(l:              uint,
         if i > 2 {
             // on the fly triangulation as trangle fan
             let g = &mut groups_ids[curr_group];
-            let p1 = g[g.len() - i];
-            let p2 = g[g.len() - 1];
+            let p1 = (*g)[g.len() - i];
+            let p2 = (*g)[g.len() - 1];
             g.push(p1);
             g.push(p2);
         }
@@ -229,72 +251,74 @@ fn parse_f<'a>(l:              uint,
         let z;
 
         if curr_ids.x < 0 {
-            x = (coords.len() as i32 + curr_ids.x + 1) as u32;
+            x = (coords.len() as i32 + curr_ids.x + 1) as usize;
         }
         else {
-            x = curr_ids.x as u32;
+            x = curr_ids.x as usize;
         }
 
         if curr_ids.y < 0 {
-            y = (uvs.len() as i32 + curr_ids.y + 1) as u32;
+            y = (uvs.len() as i32 + curr_ids.y + 1) as usize;
         }
         else {
-            y = curr_ids.y as u32;
+            y = curr_ids.y as usize;
         }
 
         if curr_ids.z < 0 {
-            z = (normals.len() as i32 + curr_ids.z + 1) as u32;
+            z = (normals.len() as i32 + curr_ids.z + 1) as usize;
         }
         else {
-            z = curr_ids.z as u32;
+            z = curr_ids.z as usize;
         }
 
-        groups_ids[curr_group].push(Vec3::new(x, y, z));
+        groups_ids[curr_group].push(Pnt3::new(x, y, z));
 
         i = i + 1;
     }
 
     // there is not enough vertex to form a triangle. Complete it.
     if i < 2 {
-        for _ in range(0u, 3 - i) {
+        for _ in 0usize .. 3 - i {
             let last = (*groups_ids)[curr_group].last().unwrap().clone();
             groups_ids[curr_group].push(last);
         }
     }
 }
 
-fn parse_vt<'a>(l: uint, mut ws: Words<'a>) -> UV {
+fn parse_vt<'a>(l: usize, mut ws: Words<'a>) -> UV {
     let _0 = "0.0";
     let sx  = ws.next().unwrap_or_else(|| error(l, "at least 2 components were expected, found 0."));
     let sy  = ws.next().unwrap_or_else(|| error(l, "at least 2 components were expected, found 1."));
     // let sz  = ws.next().unwrap_or(_0);
 
-    let x: Option<f32> = FromStr::from_str(sx);
-    let y: Option<f32> = FromStr::from_str(sy);
+    let x: Result<f32, _> = FromStr::from_str(sx);
+    let y: Result<f32, _> = FromStr::from_str(sy);
     // let z: Option<f32> = FromStr::from_str(sz);
 
-    let x = x.unwrap_or_else(|| error(l, format!("failed to parse `{}' as a f32.", sx).as_slice()));
-    let y = y.unwrap_or_else(|| error(l, format!("failed to parse `{}' as a f32.", sy).as_slice()));
+    let x = x.unwrap_or_else(|e| error(l, &format!("failed to parse `{}' as a f32: {}", sx, e)[..]));
+    let y = y.unwrap_or_else(|e| error(l, &format!("failed to parse `{}' as a f32: {}", sy, e)[..]));
     // let z = z.unwrap_or_else(|| error(l, "failed to parse `" + sz + "' as a f32."));
 
-    Vec2::new(x, y)
+    Pnt2::new(x, y)
 }
 
-fn parse_g<'a>(_:          uint,
-               mut ws:     Words<'a>,
+fn parse_g<'a>(_:          usize,
+               ws:         Words<'a>,
                prefix:     &str,
-               groups:     &mut HashMap<String, uint>,
-               groups_ids: &mut Vec<Vec<Vec3<u32>>>)
-               -> uint {
+               groups:     &mut HashMap<String, usize>,
+               groups_ids: &mut Vec<Vec<Pnt3<usize>>>)
+               -> usize {
     let suffix: Vec<&'a str> = ws.collect();
     let suffix = suffix.connect(" ");
     let name   = if suffix.len() == 0 { prefix.to_string() } else { format!("{}/{}", prefix, suffix) };
 
     match groups.entry(name) {
         Entry::Occupied(entry) => *entry.into_mut(),
-        Entry::Vacant(entry) => {
+        Entry::Vacant(entry)   => {
             groups_ids.push(Vec::new());
-            *entry.set(groups_ids.len() - 1)
+
+            let val = groups_ids.len() - 1;
+            *entry.insert(val)
         }
     }
 }
@@ -302,17 +326,17 @@ fn parse_g<'a>(_:          uint,
 fn reformat(coords:     Vec<Coord>,
             normals:    Option<Vec<Normal>>,
             uvs:        Option<Vec<UV>>,
-            groups_ids: Vec<Vec<Vec3<u32>>>,
-            groups:     HashMap<String, uint>,
-            group2mtl:  HashMap<uint, MtlMaterial>)
+            groups_ids: Vec<Vec<Pnt3<usize>>>,
+            groups:     HashMap<String, usize>,
+            group2mtl:  HashMap<usize, MtlMaterial>)
             -> Vec<(String, Mesh, Option<MtlMaterial>)> {
-    let mut vt2id:  HashMap<Vec3<u32>, u32> = HashMap::new();
-    let mut vertex_ids: Vec<u32>            = Vec::new();
+    let mut vt2id:  HashMap<Pnt3<usize>, usize> = HashMap::new();
+    let mut vertex_ids: Vec<usize>            = Vec::new();
     let mut resc: Vec<Coord>                = Vec::new();
     let mut resn: Option<Vec<Normal>>       = normals.as_ref().map(|_| Vec::new());
     let mut resu: Option<Vec<UV>>           = uvs.as_ref().map(|_| Vec::new());
-    let mut resfs: Vec<Vec<Vec3<u32>>>      = Vec::new();
-    let mut allfs: Vec<Vec3<u32>>           = Vec::new();
+    let mut resfs: Vec<Vec<Pnt3<usize>>>      = Vec::new();
+    let mut allfs: Vec<Pnt3<usize>>           = Vec::new();
     let mut names: Vec<String>              = Vec::new();
     let mut mtls:  Vec<Option<MtlMaterial>> = Vec::new();
 
@@ -324,12 +348,12 @@ fn reformat(coords:     Vec<Coord>,
             let idx = match vt2id.get(point) {
                 Some(i) => { vertex_ids.push(*i); None },
                 None    => {
-                    let idx = resc.len() as u32;
+                    let idx = resc.len() as usize;
 
-                    resc.push(coords[point.x as uint]);
+                    resc.push(coords[point.x as usize]);
 
-                    let _ = resu.as_mut().map(|l| l.push(uvs.as_ref().unwrap()[point.y as uint]));
-                    let _ = resn.as_mut().map(|l| l.push(normals.as_ref().unwrap()[point.z as uint]));
+                    let _ = resu.as_mut().map(|l| l.push((*uvs.as_ref().unwrap())[point.y as usize]));
+                    let _ = resn.as_mut().map(|l| l.push((*normals.as_ref().unwrap())[point.z as usize]));
 
                     vertex_ids.push(idx);
 
@@ -344,25 +368,25 @@ fn reformat(coords:     Vec<Coord>,
 
         assert!(vertex_ids.len() % 3 == 0);
 
-        for f in vertex_ids.as_slice().chunks(3) {
-            resf.push(Vec3::new(f[0], f[1], f[2]));
-            allfs.push(Vec3::new(f[0], f[1], f[2]));
+        for f in vertex_ids[..].chunks(3) {
+            resf.push(Pnt3::new(f[0], f[1], f[2]));
+            allfs.push(Pnt3::new(f[0], f[1], f[2]));
         }
 
         resfs.push(resf);
         vertex_ids.clear();
     }
 
-    let resn = resn.unwrap_or_else(|| mesh::compute_normals_array(resc.as_slice(), allfs.as_slice()));
-    let resn = SharedImmutable(Arc::new(resn));
-    let resu = resu.unwrap_or_else(|| Vec::from_elem(resc.len(), na::zero()));
-    let resu = SharedImmutable(Arc::new(resu));
-    let resc = SharedImmutable(Arc::new(resc));
+    let resn = resn.unwrap_or_else(|| mesh::compute_normals_array(&resc[..], &allfs[..]));
+    let resn = StorageLocation::SharedImmutable(Arc::new(resn));
+    let resu = resu.unwrap_or_else(|| repeat(na::orig()).take(resc.len()).collect());
+    let resu = StorageLocation::SharedImmutable(Arc::new(resu));
+    let resc = StorageLocation::SharedImmutable(Arc::new(resc));
 
     let mut meshes = Vec::new();
     for ((fs, name), mtl) in resfs.into_iter().zip(names.into_iter()).zip(mtls.into_iter()) {
         if fs.len() != 0 {
-            let fs   = SharedImmutable(Arc::new(fs));
+            let fs   = StorageLocation::SharedImmutable(Arc::new(fs));
             let mesh = Mesh::new(resc.clone(), fs, Some(resn.clone()), Some(resu.clone()));
             meshes.push((name, mesh, mtl))
         }

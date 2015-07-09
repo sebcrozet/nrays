@@ -3,7 +3,7 @@ use ncollide::ray::Ray;
 use math::{Scalar, Point, Vect};
 
 pub struct RayWithEnergy {
-    pub ray:    Ray<Point, Vect>,
+    pub ray:    Ray<Point>,
     pub refr:   Scalar,
     pub energy: f32
 }

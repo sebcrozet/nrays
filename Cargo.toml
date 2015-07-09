@@ -11,6 +11,11 @@ path = "examples/loader3d.rs"
 name = "sphere4d"
 path = "examples/sphere4d.rs"
 
+[dependencies]
+ncollide = "*"
+nalgebra = "*"
+png = "*"
+
 [dependencies.nrays3d]
 path = "build/nrays3d"
 

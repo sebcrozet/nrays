@@ -10,8 +10,8 @@ impl Material for UVMaterial {
     fn ambiant(&self, _: &Pnt3<Scalar>, _: &Vec3<Scalar>, uv: &Option<Pnt2<Scalar>>) -> Pnt4<f32> {
         match *uv {
             Some(ref uvs) => {
-                let ux = NumCast::from(uvs.x).expect("Conversion failed.");
-                let uy = NumCast::from(uvs.y).expect("Conversion failed.");
+                let ux = na::cast(uvs.x);
+                let uy = na::cast(uvs.y);
 
                 Pnt4::new(ux, uy, na::zero(), 1.0)
             },

@@ -1,19 +1,19 @@
+use std::path::Path;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::sync::Arc;
-use stb_image::image::ImageU8;
-use stb_image::image;
+use stb_image::image::{self, LoadResult};
 use na::{Pnt2, Pnt4, Vec2};
 use na;
 use math::Scalar;
 
 pub struct ImageData {
     pixels: Vec<Pnt4<f32>>,
-    dims:   Vec2<uint>
+    dims:   Vec2<usize>
 }
 
 impl ImageData {
-    pub fn new(pixels: Vec<Pnt4<f32>>, dims: Vec2<uint>) -> ImageData {
+    pub fn new(pixels: Vec<Pnt4<f32>>, dims: Vec2<usize>) -> ImageData {
         assert!(pixels.len() == dims.x * dims.y);
         assert!(dims.x >= 1);
         assert!(dims.y >= 1);
@@ -25,7 +25,7 @@ impl ImageData {
     }
 }
 
-local_data_key!(KEY_TEXTURE_MANAGER: RefCell<TextureManager>)
+thread_local!(static TEXTURE_MANAGER: RefCell<TextureManager> = RefCell::new(TextureManager::new()));
 
 struct TextureManager {
     loaded_opaque:      HashMap<String, Arc<ImageData>>,
@@ -42,12 +42,8 @@ impl TextureManager {
 }
 
 /// Gets the texture manager.
-fn get_texture_manager<T>(f: |&mut TextureManager| -> T) -> T {
-    if KEY_TEXTURE_MANAGER.get().is_none() {
-        let _ = KEY_TEXTURE_MANAGER.replace(Some(RefCell::new(TextureManager::new())));
-    }
-
-    f(KEY_TEXTURE_MANAGER.get().unwrap().borrow_mut().deref_mut())
+fn get_texture_manager<T, F: Fn(&mut TextureManager) -> T>(f: F) -> T {
+    TEXTURE_MANAGER.with(|tm| f(&mut *tm.borrow_mut()))
 }
 
 // FIXME: move this to its own file
@@ -87,24 +83,24 @@ impl Texture2d {
                 let found;
 
                 if opacity {
-                   found = tm.loaded_transparent.get(&path.as_str().unwrap().to_string());
+                   found = tm.loaded_transparent.get(path.to_str().expect("Invalid path."));
                 }
                 else {
-                   found = tm.loaded_opaque.get(&path.as_str().unwrap().to_string());
+                   found = tm.loaded_opaque.get(path.to_str().expect("Invalid path."));
                 }
 
                 res = match found {
                     Some(data) => Some(data.clone()),
                     None => {
-                        match image::load(&Path::new(path.as_str().unwrap().to_string())) {
-                            ImageU8(mut image) => {
+                        match image::load(&Path::new(path.to_str().expect("Invalid path."))) {
+                            LoadResult::ImageU8(mut image) => {
                                 let mut data = Vec::new();
 
                                 // Flip the y axis
                                 let elt_per_row = image.width * image.depth;
-                                for j in range(0u, image.height / 2) {
-                                    for i in range(0u, elt_per_row) {
-                                        image.data.as_mut_slice().swap(
+                                for j in 0 .. image.height / 2 {
+                                    for i in 0 .. elt_per_row {
+                                        image.data[..].swap(
                                             (image.height - j - 1) * elt_per_row + i,
                                             j * elt_per_row + i)
                                     }
@@ -123,10 +119,10 @@ impl Texture2d {
                                     }
 
                                     Some(Arc::new(ImageData::new(data,
-                                    Vec2::new(image.width as uint, image.height as uint))))
+                                    Vec2::new(image.width as usize, image.height as usize))))
                                 }
                                 else if image.depth == 2 {
-                                    for p in image.data.as_slice().chunks(2) {
+                                    for p in image.data[..].chunks(2) {
                                         let r = p[0] as f32 / 255.0;
                                         let g = p[1] as f32 / 255.0;
 
@@ -139,10 +135,10 @@ impl Texture2d {
                                     }
 
                                     Some(Arc::new(ImageData::new(data,
-                                    Vec2::new(image.width as uint, image.height as uint))))
+                                    Vec2::new(image.width as usize, image.height as usize))))
                                 }
                                 else if image.depth == 3 {
-                                    for p in image.data.as_slice().chunks(3) {
+                                    for p in image.data[..].chunks(3) {
                                         let r = p[0] as f32 / 255.0;
                                         let g = p[1] as f32 / 255.0;
                                         let b = p[2] as f32 / 255.0;
@@ -156,10 +152,10 @@ impl Texture2d {
                                     }
 
                                     Some(Arc::new(ImageData::new(data,
-                                    Vec2::new(image.width as uint, image.height as uint))))
+                                    Vec2::new(image.width as usize, image.height as usize))))
                                 }
                                 else if image.depth == 4 {
-                                    for p in image.data.as_slice().chunks(4) {
+                                    for p in image.data[..].chunks(4) {
                                         let r = p[0] as f32 / 255.0;
                                         let g = p[1] as f32 / 255.0;
                                         let b = p[2] as f32 / 255.0;
@@ -174,7 +170,7 @@ impl Texture2d {
                                     }
 
                                     Some(Arc::new(ImageData::new(data,
-                                    Vec2::new(image.width as uint, image.height as uint))))
+                                    Vec2::new(image.width as usize, image.height as usize))))
                                 }
                                 else {
                                     panic!("Image depth {} not suported.", image.depth);
@@ -191,10 +187,10 @@ impl Texture2d {
             let data = res.clone();
             data.map(|data| {
                 if opacity {
-                    tm.loaded_transparent.insert(path.as_str().unwrap().to_string(), data)
+                    tm.loaded_transparent.insert(path.to_str().unwrap().to_string(), data)
                 }
                 else {
-                    tm.loaded_opaque.insert(path.as_str().unwrap().to_string(), data)
+                    tm.loaded_opaque.insert(path.to_str().unwrap().to_string(), data)
                 }
             });
 
@@ -204,20 +200,20 @@ impl Texture2d {
         data.map(|data| Texture2d::new(data, interpolation, overflow))
     }
 
-    pub fn at<'a>(&'a self, x: uint, y: uint) -> &'a Pnt4<f32> {
+    pub fn at<'a>(&'a self, x: usize, y: usize) -> &'a Pnt4<f32> {
         &self.data.pixels[y * self.data.dims.x + x]
     }
 
     pub fn sample(&self, coords: &Pnt2<Scalar>) -> Pnt4<f32> {
-        let mut ux: f32 = NumCast::from(coords.x).expect("Conversion of sampling coordinates failed.");
-        let mut uy: f32 = NumCast::from(coords.y).expect("Conversion of sampling coordinates failed.");
+        let mut ux: f32 = na::cast(coords.x);
+        let mut uy: f32 = na::cast(coords.y);
 
         match self.overflow {
-            ClampToEdges => {
+            Overflow::ClampToEdges => {
                 ux = na::clamp(ux, 0.0, 1.0);
                 uy = na::clamp(uy, 0.0, 1.0);
             }
-            Wrap => {
+            Overflow::Wrap => {
                 ux = ux % 1.0;
                 uy = uy % 1.0;
 
@@ -230,15 +226,15 @@ impl Texture2d {
         uy = uy * ((self.data.dims.y - 1) as f32);
 
         match self.interpol {
-            Nearest => {
-                let ux = ux.round() as uint;
-                let uy = uy.round() as uint;
+            Interpolation::Nearest => {
+                let ux = ux.round() as usize;
+                let uy = uy.round() as usize;
 
                 self.at(ux, uy).clone()
             },
-            Bilinear => {
-                let low_ux = ux.floor() as uint;
-                let low_uy = uy.floor() as uint;
+            Interpolation::Bilinear => {
+                let low_ux = ux.floor() as usize;
+                let low_uy = uy.floor() as usize;
 
                 let hig_ux = low_ux + 1;
                 let hig_uy = low_uy + 1;

@@ -103,9 +103,9 @@ impl Material for PhongMaterial {
         // compute the contribution of each light
         for light in scene.lights().iter() {
             let mut acc = Vec3::new(0.0f32, 0.0, 0.0);
-            light.sample(|pos| {
+            light.sample(&mut |pos| {
                 let mut ldir = pos - *point;
-                let     dist = ldir.normalize() - na::cast(0.001f64);
+                let     dist = ldir.normalize_mut() - na::cast::<f64, Scalar>(0.001f64);
 
                 match scene.intersects_ray(&Ray::new(*point + ldir * na::cast::<f32, Scalar>(0.001), ldir.clone()), dist) {
                     None         => { },
@@ -113,7 +113,7 @@ impl Material for PhongMaterial {
                         let dot_ldir_norm = na::dot(&ldir, normal);
 
                         // diffuse
-                        let dcoeff: f32   = NumCast::from(dot_ldir_norm.clone()).expect("[0] Conversion failed.");
+                        let dcoeff: f32   = na::cast(dot_ldir_norm.clone());
                         let dcoeff        = dcoeff.max(0.0);
                         let diffuse_color = *self.diffuse_color.as_vec() * *tex_color.as_vec();
 
@@ -123,7 +123,7 @@ impl Material for PhongMaterial {
                         let lproj = *normal * dot_ldir_norm;
                         let rldir = na::normalize(&(-ldir + lproj * na::cast::<f32, Scalar>(2.0)));
 
-                        let scoeff: f32 = NumCast::from(-na::dot(&rldir, &ray.ray.dir)).expect("[1] Conversion failed.");
+                        let scoeff: f32 = na::cast(-na::dot(&rldir, &ray.ray.dir));
                         if scoeff > na::zero() {
                             let scoeff   = scoeff.clone().powf(self.shininess);
                             let specular = self.specular_color * scoeff;

@@ -12,8 +12,13 @@ default = [ "4d", "f64" ]
 f64     = []
 4d      = []
 
-[dependencies.ncollide]
-git = "https://github.com/sebcrozet/ncollide"
+[dependencies]
+nalgebra = "*"
+ncollide = "*"
+rand = "*"
+num = "*"
+num_cpus = "*"
+byteorder = "0.3.*"
 
 [dependencies.png]
 git = "https://github.com/servo/rust-png"

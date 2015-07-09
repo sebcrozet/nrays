@@ -1,11 +1,12 @@
 #![warn(non_camel_case_types)]
 
-extern crate "nalgebra" as na;
+extern crate nalgebra as na;
 extern crate ncollide;
-extern crate "nrays4d"       as nrays;
+extern crate nrays4d  as nrays;
 
+use std::path::Path;
 use std::sync::Arc;
-use std::io::fs::File;
+use std::fs::File;
 use na::{Iso4, Pnt3, Pnt4, Vec3, Vec4};
 use ncollide::ray::Ray;
 use ncollide::shape::{Ball, Cuboid, Cone, Cylinder};
@@ -43,21 +44,21 @@ fn main() {
         //                        Pnt3::new(1.0, 1.0, 1.0)));
     }
 
-    let blue = Arc::new(box PhongMaterial::new(
+    let blue = Arc::new(Box::new(PhongMaterial::new(
         Pnt3::new(1.0, 1.0, 1.0),
         Pnt3::new(1.0, 1.0, 1.0),
         Pnt3::new(1.0, 1.0, 1.0),
         None,
         None,
         60.0
-    ) as Box<Material + Sync + Send>);
+    )) as Box<Material + Sync + Send>);
 
     let transform: Iso4<f64> = na::one();
 
-    let box_shape = box Cuboid::new(Vec4::new(0.25, 0.25, 0.25, 0.25));
-    let ball      = box Ball::new(0.25);
-    let cone      = box Cone::new(0.25, 0.25);
-    let cylinder  = box Cylinder::new(0.25, 0.25);
+    let box_shape = Box::new(Cuboid::new(Vec4::new(0.25, 0.25, 0.25, 0.25)));
+    let ball      = Box::new(Ball::new(0.25));
+    let cone      = Box::new(Cone::new(0.25, 0.25));
+    let cylinder  = Box::new(Cylinder::new(0.25, 0.25));
 
     let pos  = na::append_translation(&transform, &Vec4::new(0.0, 0.0, 0.0,    1.5));
     let pos2 = na::append_translation(&transform, &Vec4::new(0.75, 0.75, 0.0,  1.5));

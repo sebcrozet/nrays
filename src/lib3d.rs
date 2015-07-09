@@ -1,9 +1,9 @@
 #![warn(non_camel_case_types)]
-#![feature(phase)]
 
-extern crate rustrt;
-extern crate native;
-extern crate "nalgebra" as na;
+extern crate num;
+extern crate num_cpus;
+extern crate rand;
+extern crate nalgebra as na;
 extern crate ncollide;
 extern crate png;
 extern crate stb_image;
