@@ -90,7 +90,7 @@ pub fn parse(string: &str) -> Vec<MtlMaterial> {
 
 fn parse_name<'a>(_: usize, ws: Words<'a>) -> String {
     let res: Vec<&'a str> = ws.collect();
-    res.connect(" ")
+    res.join(" ")
 }
 
 fn parse_color<'a>(l: usize, mut ws: Words<'a>) -> Pnt3<f32> {

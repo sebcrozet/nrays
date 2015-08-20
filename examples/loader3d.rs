@@ -15,7 +15,7 @@ use std::str::SplitWhitespace;
 use std::collections::HashMap;
 use std::sync::Arc;
 use na::{Pnt2, Pnt3, Vec2, Vec3, Iso3, Persp3, Translate};
-use ncollide::bounding_volume::{AABB, HasAABB, implicit_shape_aabb};
+use ncollide::bounding_volume::{AABB, HasBoundingVolume, implicit_shape_aabb};
 use ncollide::shape::{Plane, Ball, Cone, Cylinder, Capsule, Cuboid, TriMesh};
 use ncollide::support_map::SupportMap;
 use ncollide::ray::{Ray3, RayCast, RayIntersection3, implicit_toi_and_normal_with_ray};
@@ -608,7 +608,7 @@ fn parse_triplet<'a>(l: usize, mut ws: SplitWhitespace<'a>) -> Vec3<f64> {
 
 fn parse_name<'a>(_: usize, ws: SplitWhitespace<'a>) -> String {
     let res: Vec<&'a str> = ws.collect();
-    res.connect(" ")
+    res.join(" ")
 }
 
 fn parse_number<'a>(l: usize, mut ws: SplitWhitespace<'a>) -> f64 {
@@ -678,11 +678,11 @@ fn parse_obj<'a>(l: usize, mut ws: SplitWhitespace<'a>) -> Shape {
 }
 
 trait SupportMapShape : SupportMap<Point, Matrix> + 'static + Send + Sync +
-                        RayCast<Point, Matrix> + HasAABB<Point, Matrix> { }
+                        RayCast<Point, Matrix> + HasBoundingVolume<Matrix, AABB<Point>> { }
 
 impl<T> SupportMapShape for T
     where T: SupportMap<Point, Matrix> + 'static + Send + Sync + RayCast<Point, Matrix> +
-             HasAABB<Point, Matrix>
+             HasBoundingVolume<Matrix, AABB<Point>>
 { }
 
 struct MinkowksiSum {
@@ -697,8 +697,8 @@ impl MinkowksiSum {
     }
 }
 
-impl HasAABB<Point, Matrix> for MinkowksiSum {
-    fn aabb(&self, m: &Matrix) -> AABB<Point> {
+impl HasBoundingVolume<Matrix, AABB<Point>> for MinkowksiSum {
+    fn bounding_volume(&self, m: &Matrix) -> AABB<Point> {
         implicit_shape_aabb(m, self)
     }
 }

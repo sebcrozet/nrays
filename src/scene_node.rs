@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use na::Transform;
 use ncollide::ray::{RayCast, Ray, RayIntersection};
-use ncollide::bounding_volume::{HasAABB, AABB};
+use ncollide::bounding_volume::{AABB, HasBoundingVolume};
 use math::{Scalar, Point, Vect, Matrix};
 use material::Material;
 use texture2d::Texture2d;
@@ -23,7 +23,7 @@ pub struct SceneNode {
 }
 
 impl SceneNode {
-    pub fn new<G: 'static + Send + Sync + RayCast<Point, Matrix> + HasAABB<Point, Matrix>>(
+    pub fn new<G: 'static + Send + Sync + RayCast<Point, Matrix> + HasBoundingVolume<Matrix, AABB<Point>>> (
                material:        Arc<Box<Material + Sync + Send>>,
                refl_mix:        f32,
                refl_atenuation: f32,
@@ -40,7 +40,7 @@ impl SceneNode {
             alpha:           alpha,
             refr_coeff:      refr_coeff,
             material:        material,
-            aabb:            geometry.aabb(&transform),
+            aabb:            geometry.bounding_volume(&transform),
             geometry:        geometry as Box<RayCast<Point, Matrix> + Sync + Send>,
             transform:       transform,
             nmap:            nmap,

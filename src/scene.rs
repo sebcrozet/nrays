@@ -16,7 +16,7 @@ use num::Zero;
 use std::sync::Arc;
 use na::{Identity, Pnt2, Vec3};
 use na;
-use ncollide::bounding_volume::{AABB, HasAABB};
+use ncollide::bounding_volume::AABB;
 use ncollide::partitioning::{BVT, BVTCostFn};
 // use ncollide::partitioning::bvt_visitor::RayInterferencesCollector;
 use ncollide::ray::{Ray, RayIntersection, RayCast};

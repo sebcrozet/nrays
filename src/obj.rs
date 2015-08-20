@@ -128,7 +128,7 @@ fn parse_usemtl<'a>(l:          usize,
                     curr_mtl:   &mut Option<MtlMaterial>)
                     -> usize {
     let mname: Vec<&'a str> = ws.collect();
-    let mname = mname.connect(" ");
+    let mname = mname.join(" ");
     let none  = "None";
     if mname[..] != none[..] {
         match mtllib.get(&mname) {
@@ -171,7 +171,7 @@ fn parse_mtllib<'a>(l:            usize,
                     mtl_base_dir: &Path,
                     mtllib:       &mut HashMap<String, MtlMaterial>) {
     let filename: Vec<&'a str> = ws.collect();
-    let filename = filename.connect(" ");
+    let filename = filename.join(" ");
 
     let mut path = PathBuf::new();
     path.push(mtl_base_dir);
@@ -309,7 +309,7 @@ fn parse_g<'a>(_:          usize,
                groups_ids: &mut Vec<Vec<Pnt3<usize>>>)
                -> usize {
     let suffix: Vec<&'a str> = ws.collect();
-    let suffix = suffix.connect(" ");
+    let suffix = suffix.join(" ");
     let name   = if suffix.len() == 0 { prefix.to_string() } else { format!("{}/{}", prefix, suffix) };
 
     match groups.entry(name) {
