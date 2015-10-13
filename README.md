@@ -25,7 +25,7 @@ make
 cd bin
 wget https://www.dropbox.com/s/hts81ejea7quxes/media.tar.bz2
 tar xf media.tar.bz2
-./loader3d crytek_sponza.scene
+../target/release/loader3d crytek_sponza.scene
 ```
 
 ## 4d ray tracing
