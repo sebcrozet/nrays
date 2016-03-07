@@ -74,7 +74,7 @@ pub fn parse(string: &str, mtl_base_dir: &Path, basename: &str) -> Vec<(String, 
     groups_ids.push(Vec::new());
     let _ = groups.insert(basename.to_string(), 0);
 
-    for (l, line) in string.lines_any().enumerate() {
+    for (l, line) in string.lines().enumerate() {
         let mut words = split_words(line);
         let tag = words.next();
         match tag {

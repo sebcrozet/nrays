@@ -71,8 +71,7 @@ fn main() {
             1.0,
             100000.0).to_mat();
 
-        let mut camera = na::one::<Iso3<f64>>();
-        camera.look_at_z(&c.eye, &c.at, &Vec3::y());
+        let camera = Iso3::<f64>::look_at_z(&c.eye, &c.at, &Vec3::y());
 
         let projection = na::to_homogeneous(&camera) * na::inv(&perspective).expect("Perspective matrix not invesible.");
 
@@ -199,7 +198,7 @@ fn parse(string: &str) -> (Vec<Light>, Vec<Arc<SceneNode>>, Vec<Camera>) {
     let mut mode    = Mode::NoMode;
     let mut mtllib  = HashMap::new();
 
-    for (l, line) in string.lines_any().enumerate() {
+    for (l, line) in string.lines().enumerate() {
         let mut words  = line.split_whitespace();
         let tag        = words.next();
 
