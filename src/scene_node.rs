@@ -6,7 +6,6 @@ use math::{Scalar, Point, Vect, Matrix};
 use material::Material;
 use texture2d::Texture2d;
 
-#[cfg(feature = "3d")]
 use na;
 
 pub struct SceneNode {
@@ -50,7 +49,6 @@ impl SceneNode {
 
 }
 
-#[cfg(feature = "3d")]
 impl SceneNode {
     pub fn cast(&self, r: &Ray<Point>) -> Option<RayIntersection<Vect>> {
         let res = self.geometry.toi_and_normal_and_uv_with_ray(&self.transform, r, self.solid);
@@ -74,12 +72,5 @@ impl SceneNode {
                 Some(inter)
             }
         }
-    }
-}
-
-#[cfg(feature = "4d")]
-impl SceneNode {
-    pub fn cast(&self, r: &Ray<Point>) -> Option<RayIntersection<Vect>> {
-        self.geometry.toi_and_normal_with_ray(&self.transform, r, self.solid)
     }
 }

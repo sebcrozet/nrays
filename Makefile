@@ -13,7 +13,6 @@ render: all
 	cd bin; ../target/release/loader3d cubic_room.scene; mv out.png cubic_room.png
 	cd bin; ../target/release/loader3d dabrovic_sponza.scene; mv out.png dabrovic_sponza.png
 	cd bin; ../target/release/loader3d dragon.scene; mv out.png dragon.png
-	cd bin; ../target/release/loader3d francois.scene; mv out.png francois.png
 	cd bin; ../target/release/loader3d girl.scene; mv out.png girl.png
 	cd bin; ../target/release/loader3d hairball.scene; mv out.png hairball.png
 	cd bin; ../target/release/loader3d head.scene; mv out.png head.png
@@ -26,6 +25,7 @@ render: all
 	cd bin; ../target/release/loader3d rungholt.scene; mv out.png rungholt.png
 	cd bin; ../target/release/loader3d sibenik.scene; mv out.png sibenik.png
 	cd bin; ../target/release/loader3d teapot.scene; mv out.png teapot.png
+	cd bin; ../target/release/loader3d francois.scene; mv out.png francois.png
 
 clean:
 	cargo clean

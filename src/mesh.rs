@@ -3,14 +3,14 @@
 use std::sync::Arc;
 use std::iter;
 use num::Zero;
-use na::{Vec3, Pnt2, Pnt3};
+use na::{Vector3, Point2, Point3};
 use na;
 
-pub type Coord  = Pnt3<f32>;
-pub type Normal = Vec3<f32>;
-pub type UV     = Pnt2<f32>;
+pub type Coord  = Point3<f32>;
+pub type Normal = Vector3<f32>;
+pub type UV     = Point2<f32>;
 pub type Vertex = usize;
-pub type Face   = Pnt3<Vertex>;
+pub type Face   = Point3<Vertex>;
 
 pub enum StorageLocation<T> {
     SharedImmutable(Arc<T>),
@@ -102,7 +102,7 @@ impl Mesh {
         let uvs = match uvs {
             Some(us) => us,
             None     => {
-                let uvs = iter::repeat(na::orig()).take(coords.get().len()).collect();
+                let uvs = iter::repeat(na::origin()).take(coords.get().len()).collect();
                 StorageLocation::new(uvs, coords.is_shared())
             }
         };
@@ -190,7 +190,7 @@ pub fn compute_normals(coordinates: &[Coord],
 
     // Grow the output buffer if it is too small.
     normals.clear();
-    normals.extend(iter::repeat(na::zero::<Vec3<f32>>()).take(coordinates.len()));
+    normals.extend(iter::repeat(na::zero::<Vector3<f32>>()).take(coordinates.len()));
 
     // Accumulate normals ...
     for f in faces.iter() {

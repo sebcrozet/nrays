@@ -1,5 +1,5 @@
 use rand::random;
-use na::Pnt3;
+use na::Point3;
 use math::{Scalar, Point, Vect};
 
 #[cfg(feature = "3d")]
@@ -9,11 +9,11 @@ pub struct Light {
     pub pos:       Point,
     pub radius:    Scalar,
     pub racsample: usize,
-    pub color:     Pnt3<f32>
+    pub color:     Point3<f32>
 }
 
 impl Light {
-    pub fn new(pos: Point, radius: Scalar, nsample: usize, color: Pnt3<f32>) -> Light {
+    pub fn new(pos: Point, radius: Scalar, nsample: usize, color: Point3<f32>) -> Light {
         Light {
             pos:     pos,
             radius:  radius,

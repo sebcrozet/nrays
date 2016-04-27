@@ -6,7 +6,7 @@ use std::io::Result as IoResult;
 use std::io::Read;
 use std::str::FromStr;
 use std::path::Path;
-use na::Pnt3;
+use na::Point3;
 use obj::Words;
 use obj;
 
@@ -93,7 +93,7 @@ fn parse_name<'a>(_: usize, ws: Words<'a>) -> String {
     res.join(" ")
 }
 
-fn parse_color<'a>(l: usize, mut ws: Words<'a>) -> Pnt3<f32> {
+fn parse_color<'a>(l: usize, mut ws: Words<'a>) -> Point3<f32> {
     let sx = ws.next().unwrap_or_else(|| error(l, "3 components were expected, found 0."));
     let sy = ws.next().unwrap_or_else(|| error(l, "3 components were expected, found 1."));
     let sz = ws.next().unwrap_or_else(|| error(l, "3 components were expected, found 2."));
@@ -106,7 +106,7 @@ fn parse_color<'a>(l: usize, mut ws: Words<'a>) -> Pnt3<f32> {
     let y = y.unwrap_or_else(|e| error(l, &format!("failed to parse `{}' as a f32: {}", sy, e)[..]));
     let z = z.unwrap_or_else(|e| error(l, &format!("failed to parse `{}' as a f32: {}", sz, e)[..]));
 
-    Pnt3::new(x, y, z)
+    Point3::new(x, y, z)
 }
 
 fn parse_scalar<'a>(l: usize, mut ws: Words<'a>) -> f32 {
@@ -133,11 +133,11 @@ pub struct MtlMaterial {
     /// Path to the opacity map.
     pub opacity_map:      Option<String>,
     /// The ambiant color.
-    pub ambiant:          Pnt3<f32>,
+    pub ambiant:          Point3<f32>,
     /// The diffuse color.
-    pub diffuse:          Pnt3<f32>,
+    pub diffuse:          Point3<f32>,
     /// The specular color.
-    pub specular:         Pnt3<f32>,
+    pub specular:         Point3<f32>,
     /// The shininess.
     pub shininess:        f32,
     /// Alpha blending.
@@ -155,9 +155,9 @@ impl MtlMaterial {
             diffuse_texture:  None,
             specular_texture: None,
             opacity_map:      None,
-            ambiant:          Pnt3::new(1.0, 1.0, 1.0),
-            diffuse:          Pnt3::new(1.0, 1.0, 1.0),
-            specular:         Pnt3::new(1.0, 1.0, 1.0),
+            ambiant:          Point3::new(1.0, 1.0, 1.0),
+            diffuse:          Point3::new(1.0, 1.0, 1.0),
+            specular:         Point3::new(1.0, 1.0, 1.0),
         }
     }
 
@@ -165,9 +165,9 @@ impl MtlMaterial {
     pub fn new(name:             String,
                shininess:        f32,
                alpha:            f32,
-               ambiant:          Pnt3<f32>,
-               diffuse:          Pnt3<f32>,
-               specular:         Pnt3<f32>,
+               ambiant:          Point3<f32>,
+               diffuse:          Point3<f32>,
+               specular:         Point3<f32>,
                ambiant_texture:  Option<String>,
                diffuse_texture:  Option<String>,
                specular_texture: Option<String>,

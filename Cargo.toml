@@ -7,17 +7,23 @@ authors = [ "Sébastien Crozet <developer@crozet.re>" ]
 name = "loader3d"
 path = "examples/loader3d.rs"
 
-[[bin]]
-name = "sphere4d"
-path = "examples/sphere4d.rs"
-
 [dependencies]
 ncollide = "*"
 nalgebra = "*"
-png = "*"
+rand = "*"
+num = "*"
+num_cpus = "*"
 
-[dependencies.nrays3d]
-path = "build/nrays3d"
+[dependencies.png]
+git = "https://github.com/servo/rust-png"
 
-[dependencies.nrays4d]
-path = "build/nrays4d"
+[dependencies.stb_image]
+git = "https://github.com/servo/rust-stb-image"
+
+[lib]
+name = "nrays"
+path = "src/lib.rs"
+
+[features]
+default = [ "f64" ]
+f64     = []

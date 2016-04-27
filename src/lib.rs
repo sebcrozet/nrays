@@ -25,9 +25,9 @@ pub mod obj;
 pub mod mtl;
 pub mod mesh;
 
-/// Compilation flags dependent aliases for mathematical types.
+/// Type aliases for mathematical types.
 pub mod math {
-    use na::{Pnt3, Vec3, Mat3, Rot3, Iso3};
+    use na::{Point3, Vector3, Matrix3, Rotation3, Isometry3};
 
     /// The scalar type.
     #[cfg(feature = "f32")]
@@ -38,20 +38,20 @@ pub mod math {
     pub type Scalar = f64;
 
     /// The point type.
-    pub type Point = Pnt3<Scalar>;
+    pub type Point = Point3<Scalar>;
 
     /// The vector type.
-    pub type Vect = Vec3<Scalar>;
+    pub type Vect = Vector3<Scalar>;
 
     /// The orientation type.
-    pub type Orientation = Vec3<Scalar>;
+    pub type Orientation = Vector3<Scalar>;
 
     /// The transformation matrix type.
-    pub type Matrix = Iso3<Scalar>;
+    pub type Matrix = Isometry3<Scalar>;
 
     /// The rotation matrix type.
-    pub type RotationMatrix = Rot3<Scalar>;
+    pub type RotationMatrix = Rotation3<Scalar>;
 
     /// The inertia tensor type.
-    pub type AngularInertia = Mat3<Scalar>;
+    pub type AngularInertia = Matrix3<Scalar>;
 }

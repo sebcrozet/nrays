@@ -3,7 +3,7 @@
 extern crate png;
 extern crate nalgebra as na;
 extern crate ncollide;
-extern crate nrays3d as nrays;
+extern crate nrays;
 
 use std::io::Read;
 use std::env;
@@ -14,12 +14,11 @@ use std::mem;
 use std::str::SplitWhitespace;
 use std::collections::HashMap;
 use std::sync::Arc;
-use na::{Pnt2, Pnt3, Vec2, Vec3, Iso3, Persp3, Translate};
-use ncollide::bounding_volume::{AABB, HasBoundingVolume, implicit_shape_aabb};
-use ncollide::shape::{Plane, Ball, Cone, Cylinder, Capsule, Cuboid, TriMesh};
-use ncollide::support_map::SupportMap;
+use na::{Point2, Point3, Vector2, Vector3, Isometry3, Perspective3, Translate};
+use ncollide::bounding_volume::{AABB, HasBoundingVolume, support_map_aabb};
+use ncollide::shape::{SupportMap, Plane, Ball, Cone, Cylinder, Capsule, Cuboid, TriMesh};
 use ncollide::ray::{Ray3, RayCast, RayIntersection3, implicit_toi_and_normal_with_ray};
-use ncollide::geometry::algorithms::johnson_simplex::JohnsonSimplex;
+use ncollide::query::algorithms::johnson_simplex::JohnsonSimplex;
 use nrays::scene_node::SceneNode;
 use nrays::material::Material;
 use nrays::normal_material::NormalMaterial;
@@ -64,16 +63,15 @@ fn main() {
     println!("Scene loaded. {} lights, {} objects, {} cameras.", nlights, nnodes, ncams);
 
     for c in cameras.into_iter() {
-        // FIXME: new_perspective is _not_ accessible as a free function.
-        let perspective = Persp3::new(
+        let perspective = Perspective3::new(
             c.resolution.x / c.resolution.y,
             c.fovy.to_radians(),
             1.0,
-            100000.0).to_mat();
+            100000.0).to_matrix();
 
-        let camera = Iso3::<f64>::look_at_z(&c.eye, &c.at, &Vec3::y());
+        let camera = Isometry3::<f64>::look_at_rh(&c.eye, &c.at, &Vector3::y());
 
-        let projection = na::to_homogeneous(&camera) * na::inv(&perspective).expect("Perspective matrix not invesible.");
+        let projection = na::inverse(&(perspective * na::to_homogeneous(&camera))).unwrap();
 
         println!("Casting {} rays per pixels (win. {}).", c.aa.x as usize, c.aa.y);
 
@@ -104,8 +102,8 @@ enum Mode {
 #[derive(Clone)]
 enum Shape {
     GBall(f64),
-    GPlane(Vec3<f64>),
-    GCuboid(Vec3<f64>),
+    GPlane(Vector3<f64>),
+    GCuboid(Vector3<f64>),
     GCylinder(f64, f64),
     GCapsule(f64, f64),
     GCone(f64, f64),
@@ -113,16 +111,16 @@ enum Shape {
 }
 
 struct Camera {
-    eye:        Pnt3<f64>,
-    at:         Pnt3<f64>,
+    eye:        Point3<f64>,
+    at:         Point3<f64>,
     fovy:       f64,
-    resolution: Vec2<f64>,
-    aa:         Vec2<f64>,
+    resolution: Vector2<f64>,
+    aa:         Vector2<f64>,
     output:     String
 }
 
 impl Camera {
-    pub fn new(eye: Pnt3<f64>, at: Pnt3<f64>, fovy: f64, resolution: Vec2<f64>, aa: Vec2<f64>, output: String) -> Camera {
+    pub fn new(eye: Point3<f64>, at: Point3<f64>, fovy: f64, resolution: Vector2<f64>, aa: Vector2<f64>, output: String) -> Camera {
         assert!(aa.x >= 1.0, "The number of ray per pixel must be at least 1.0");
 
         Camera {
@@ -139,18 +137,18 @@ impl Camera {
 struct Properties {
     superbloc:  usize,
     geom:       Vec<(usize, Shape)>,
-    pos:        Option<(usize, Pnt3<f64>)>,
-    angle:      Option<(usize, Vec3<f64>)>,
+    pos:        Option<(usize, Point3<f64>)>,
+    angle:      Option<(usize, Vector3<f64>)>,
     material:   Option<(usize, String)>,
-    eye:        Option<(usize, Pnt3<f64>)>,
-    at:         Option<(usize, Pnt3<f64>)>,
+    eye:        Option<(usize, Point3<f64>)>,
+    at:         Option<(usize, Point3<f64>)>,
     fovy:       Option<(usize, f64)>,
-    color:      Option<(usize, Pnt3<f64>)>,
-    resolution: Option<(usize, Vec2<f64>)>,
+    color:      Option<(usize, Point3<f64>)>,
+    resolution: Option<(usize, Vector2<f64>)>,
     output:     Option<(usize, String)>,
-    refl:       Option<(usize, Vec2<f64>)>,
+    refl:       Option<(usize, Vector2<f64>)>,
     refr:       Option<(usize, f64)>,
-    aa:         Option<(usize, Vec2<f64>)>,
+    aa:         Option<(usize, Vector2<f64>)>,
     radius:     Option<(usize, f64)>,
     nsample:    Option<(usize, f64)>,
     solid:      bool,
@@ -203,9 +201,9 @@ fn parse(string: &str) -> (Vec<Light>, Vec<Arc<SceneNode>>, Vec<Camera>) {
         let tag        = words.next();
 
         let white = Arc::new(Box::new(PhongMaterial::new(
-            Pnt3::new(0.1, 0.1, 0.1),
-            Pnt3::new(1.0, 1.0, 1.0),
-            Pnt3::new(1.0, 1.0, 1.0),
+            Point3::new(0.1, 0.1, 0.1),
+            Point3::new(1.0, 1.0, 1.0),
+            Point3::new(1.0, 1.0, 1.0),
             None,
             None,
             100.0
@@ -238,11 +236,11 @@ fn parse(string: &str) -> (Vec<Light>, Vec<Arc<SceneNode>>, Vec<Camera>) {
                             mode  = Mode::CameraMode;
                         },
                         // common attributes
-                        "color"      => props.color      = Some((l, parse_triplet(l, words).translate(&na::orig()))),
+                        "color"      => props.color      = Some((l, parse_triplet(l, words).translate(&na::origin()))),
                         "angle"      => props.angle      = Some((l, parse_triplet(l, words))),
-                        "pos"        => props.pos        = Some((l, parse_triplet(l, words).translate(&na::orig()))),
-                        "eye"        => props.eye        = Some((l, parse_triplet(l, words).translate(&na::orig()))),
-                        "at"         => props.at         = Some((l, parse_triplet(l, words).translate(&na::orig()))),
+                        "pos"        => props.pos        = Some((l, parse_triplet(l, words).translate(&na::origin()))),
+                        "eye"        => props.eye        = Some((l, parse_triplet(l, words).translate(&na::origin()))),
+                        "at"         => props.at         = Some((l, parse_triplet(l, words).translate(&na::origin()))),
                         "material"   => props.material   = Some((l, parse_name(l, words))),
                         "fovy"       => props.fovy       = Some((l, parse_number(l, words))),
                         "output"     => props.output     = Some((l, parse_name(l, words))),
@@ -352,7 +350,7 @@ fn register_camera(props: Properties, cameras: &mut Vec<Camera>) {
     fail_if_none(&props.fovy, l, "fovy <value>");
 
 
-    let aa   = props.aa.unwrap_or((l, Vec2::new(1.0, 0.0)));
+    let aa   = props.aa.unwrap_or((l, Vector2::new(1.0, 0.0)));
     let eye  = props.eye.unwrap().1;
     let at   = props.at.unwrap().1;
     let fov  = props.fovy.unwrap().1;
@@ -381,7 +379,7 @@ fn register_light(props: Properties, lights: &mut Vec<Light>) {
     let radius  = props.radius.unwrap_or((props.superbloc, 0.0)).1;
     let nsample = props.nsample.unwrap_or((props.superbloc, 1.0)).1;
     let pos     = props.pos.unwrap().1;
-    let color: Pnt3<f32> = na::cast(props.color.unwrap().1);
+    let color: Point3<f32> = na::cast(props.color.unwrap().1);
     let light   = Light::new(pos, radius, nsample as usize, color);
 
     lights.push(light);
@@ -458,10 +456,10 @@ fn register_geometry(props:  Properties,
         angle.y = angle.y.to_radians();
         angle.z = angle.z.to_radians();
 
-        transform = Iso3::new(pos.to_vec(), angle);
+        transform = Isometry3::new(pos.to_vector(), angle);
         normals   = None;
 
-        let refl_param = props.refl.unwrap_or((props.superbloc, Vec2::new(0.0, 0.0))).1;
+        let refl_param = props.refl.unwrap_or((props.superbloc, Vector2::new(0.0, 0.0))).1;
         refl_m = refl_param.x as f32;
         refl_a = refl_param.y as f32;
 
@@ -507,9 +505,9 @@ fn register_geometry(props:  Properties,
             let os      = obj::parse_file(&Path::new(&objpath[..]), &mtlpath, "").unwrap();
 
             if os.len() > 0 {
-                let coords: Arc<Vec<Pnt3<f64>>> = Arc::new(os[0].1.coords().iter().map(|a| Pnt3::new(a.x as f64, a.y as f64, a.z as f64) / 4.0f64).collect()); // XXX: remove this arbitrary division by 4.0!
-                let uvs: Arc<Vec<Pnt2<f64>>>    = Arc::new(os[0].1.uvs().iter().flat_map(|a| vec!(Pnt2::new(a.x as f64, a.y as f64)).into_iter()).collect());
-                let ns: Arc<Vec<Vec3<f64>>> = Arc::new(os[0].1.normals().iter().map(|a| Vec3::new(a.x as f64, a.y as f64, a.z as f64)).collect());
+                let coords: Arc<Vec<Point3<f64>>> = Arc::new(os[0].1.coords().iter().map(|a| Point3::new(a.x as f64, a.y as f64, a.z as f64) / 4.0f64).collect()); // XXX: remove this arbitrary division by 4.0!
+                let uvs: Arc<Vec<Point2<f64>>>    = Arc::new(os[0].1.uvs().iter().flat_map(|a| vec!(Point2::new(a.x as f64, a.y as f64)).into_iter()).collect());
+                let ns: Arc<Vec<Vector3<f64>>> = Arc::new(os[0].1.normals().iter().map(|a| Vector3::new(a.x as f64, a.y as f64, a.z as f64)).collect());
 
                 for n in ns.iter() {
                     if *n != *n {
@@ -521,7 +519,7 @@ fn register_geometry(props:  Properties,
                     let mut o = o;
                     let faces = Arc::new(o.mut_faces().unwrap());
 
-                    let mesh: Box<TriMesh<Pnt3<f64>>>;
+                    let mesh: Box<TriMesh<Point3<f64>>>;
                     
                     if flat {
                         mesh = Box::new(TriMesh::new(coords.clone(), faces, Some(uvs.clone()), None));
@@ -589,7 +587,7 @@ fn register_geometry(props:  Properties,
     }
 }
 
-fn parse_triplet<'a>(l: usize, mut ws: SplitWhitespace<'a>) -> Vec3<f64> {
+fn parse_triplet<'a>(l: usize, mut ws: SplitWhitespace<'a>) -> Vector3<f64> {
     let sx = ws.next().unwrap_or_else(|| error(l, "3 components were expected, found 0."));
     let sy = ws.next().unwrap_or_else(|| error(l, "3 components were expected, found 1."));
     let sz = ws.next().unwrap_or_else(|| error(l, "3 components were expected, found 2."));
@@ -602,7 +600,7 @@ fn parse_triplet<'a>(l: usize, mut ws: SplitWhitespace<'a>) -> Vec3<f64> {
     let y = y.unwrap_or_else(|_| error(l, &format!("failed to parse `{}' as a f64.", sy)[..]));
     let z = z.unwrap_or_else(|_| error(l, &format!("failed to parse `{}' as a f64.", sz)[..]));
 
-    Vec3::new(x, y, z)
+    Vector3::new(x, y, z)
 }
 
 fn parse_name<'a>(_: usize, ws: SplitWhitespace<'a>) -> String {
@@ -620,7 +618,7 @@ fn parse_number<'a>(l: usize, mut ws: SplitWhitespace<'a>) -> f64 {
     x
 }
 
-fn parse_duet<'a>(l: usize, mut ws: SplitWhitespace<'a>) -> Vec2<f64> {
+fn parse_duet<'a>(l: usize, mut ws: SplitWhitespace<'a>) -> Vector2<f64> {
     let sx = ws.next().unwrap_or_else(|| error(l, "2 components were expected, found 0."));
     let sy = ws.next().unwrap_or_else(|| error(l, "2 components were expected, found 1."));
 
@@ -630,7 +628,7 @@ fn parse_duet<'a>(l: usize, mut ws: SplitWhitespace<'a>) -> Vec2<f64> {
     let x = x.unwrap_or_else(|_| error(l, &format!("failed to parse `{}' as a f64.", sx)[..]));
     let y = y.unwrap_or_else(|_| error(l, &format!("failed to parse `{}' as a f64.", sy)[..]));
 
-    Vec2::new(x, y)
+    Vector2::new(x, y)
 }
 
 fn parse_ball<'a>(l: usize, ws: SplitWhitespace<'a>) -> Shape {
@@ -698,17 +696,17 @@ impl MinkowksiSum {
 
 impl HasBoundingVolume<Matrix, AABB<Point>> for MinkowksiSum {
     fn bounding_volume(&self, m: &Matrix) -> AABB<Point> {
-        implicit_shape_aabb(m, self)
+        support_map_aabb(m, self)
     }
 }
 
 impl SupportMap<Point, Matrix> for MinkowksiSum {
     fn support_point(&self, transform: &Matrix, dir: &Vect) -> Point {
-        let mut pt  = na::orig::<Point>();
-        let new_dir = na::inv_rotate(transform, dir);
+        let mut pt  = na::origin::<Point>();
+        let new_dir = na::inverse_rotate(transform, dir);
 
         for i in self.geoms.iter() {
-            pt = pt + i.support_point(&na::one(), &new_dir).to_vec()
+            pt = pt + i.support_point(&na::one(), &new_dir).to_vector()
         }
 
         na::transform(transform, &pt)

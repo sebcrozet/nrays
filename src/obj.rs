@@ -9,7 +9,7 @@ use std::sync::Arc;
 use std::iter::{repeat, Filter};
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
-use na::{Pnt3, Vec3, Pnt2, Bounded};
+use na::{Point3, Vector3, Point2, Bounded};
 use na;
 use mesh::{Mesh, StorageLocation};
 use mesh;
@@ -17,11 +17,11 @@ use mtl::MtlMaterial;
 use mtl;
 
 /// The type of vertex coordinates.
-pub type Coord  = Pnt3<f32>;
+pub type Coord  = Point3<f32>;
 /// The type of normals.
-pub type Normal = Vec3<f32>;
+pub type Normal = Vector3<f32>;
 /// The type of texture coordinates.
-pub type UV     = Pnt2<f32>;
+pub type UV     = Point2<f32>;
 
 /// Iterator through words.
 pub type Words<'a> = Filter<Split<'a, fn(char) -> bool>, fn(&&str) -> bool>;
@@ -63,7 +63,7 @@ pub fn parse(string: &str, mtl_base_dir: &Path, basename: &str) -> Vec<(String, 
     let mut normals:    Vec<Normal>            = Vec::new();
     let mut uvs:        Vec<UV>                = Vec::new();
     let mut groups:     HashMap<String, usize> = HashMap::new();
-    let mut groups_ids: Vec<Vec<Pnt3<usize>>>  = Vec::new();
+    let mut groups_ids: Vec<Vec<Point3<usize>>>  = Vec::new();
     let mut curr_group: usize                  = 0;
     let mut ignore_normals                     = false;
     let mut ignore_uvs                         = false;
@@ -82,7 +82,7 @@ pub fn parse(string: &str, mtl_base_dir: &Path, basename: &str) -> Vec<(String, 
             Some(w) => {
                 if w.len() != 0 && w.as_bytes()[0] != ('#' as u8) {
                     match w {
-                        "v"      => coords.push(na::orig::<Pnt3<f32>>() + parse_v_or_vn(l, words)),
+                        "v"      => coords.push(na::origin::<Point3<f32>>() + parse_v_or_vn(l, words)),
                         "vn"     => if !ignore_normals { normals.push(parse_v_or_vn(l, words)) },
                         "f"      => parse_f(l, words, &coords[..], &uvs[..], &normals[..], &mut ignore_uvs, &mut ignore_normals, &mut groups_ids, curr_group),
                         "vt"     => if !ignore_uvs { uvs.push(parse_vt(l, words)) },
@@ -124,7 +124,7 @@ fn parse_usemtl<'a>(l:          usize,
                     mtllib:     &HashMap<String, MtlMaterial>,
                     group2mtl:  &mut HashMap<usize, MtlMaterial>,
                     groups:     &mut HashMap<String, usize>,
-                    groups_ids: &mut Vec<Vec<Pnt3<usize>>>,
+                    groups_ids: &mut Vec<Vec<Point3<usize>>>,
                     curr_mtl:   &mut Option<MtlMaterial>)
                     -> usize {
     let mname: Vec<&'a str> = ws.collect();
@@ -188,7 +188,7 @@ fn parse_mtllib<'a>(l:            usize,
     }
 }
 
-fn parse_v_or_vn<'a>(l: usize, mut ws: Words<'a>) -> Vec3<f32> {
+fn parse_v_or_vn<'a>(l: usize, mut ws: Words<'a>) -> Vector3<f32> {
     let sx = ws.next().unwrap_or_else(|| error(l, "3 components were expected, found 0."));
     let sy = ws.next().unwrap_or_else(|| error(l, "3 components were expected, found 1."));
     let sz = ws.next().unwrap_or_else(|| error(l, "3 components were expected, found 2."));
@@ -201,22 +201,22 @@ fn parse_v_or_vn<'a>(l: usize, mut ws: Words<'a>) -> Vec3<f32> {
     let y = y.unwrap_or_else(|e| error(l, &format!("failed to parse `{}' as a f32: {}", sy, e)[..]));
     let z = z.unwrap_or_else(|e| error(l, &format!("failed to parse `{}' as a f32: {}", sz, e)[..]));
 
-    Vec3::new(x, y, z)
+    Vector3::new(x, y, z)
 }
 
 fn parse_f<'a>(l:              usize,
                ws:             Words<'a>,
-               coords:         &[Pnt3<f32>],
-               uvs:            &[Pnt2<f32>],
-               normals:        &[Vec3<f32>],
+               coords:         &[Point3<f32>],
+               uvs:            &[Point2<f32>],
+               normals:        &[Vector3<f32>],
                ignore_uvs:     &mut bool,
                ignore_normals: &mut bool,
-               groups_ids:     &mut Vec<Vec<Pnt3<usize>>>,
+               groups_ids:     &mut Vec<Vec<Point3<usize>>>,
                curr_group:     usize) {
     // Four formats possible: v   v/t   v//n   v/t/n
     let mut i = 0;
     for word in ws {
-        let mut curr_ids: Vec3<i32> = Bounded::max_value();
+        let mut curr_ids: Vector3<i32> = Bounded::max_value();
 
         for (i, w) in word.split('/').enumerate() {
             if i == 0 || w.len() != 0 {
@@ -271,7 +271,7 @@ fn parse_f<'a>(l:              usize,
             z = curr_ids.z as usize;
         }
 
-        groups_ids[curr_group].push(Pnt3::new(x, y, z));
+        groups_ids[curr_group].push(Point3::new(x, y, z));
 
         i = i + 1;
     }
@@ -299,14 +299,14 @@ fn parse_vt<'a>(l: usize, mut ws: Words<'a>) -> UV {
     let y = y.unwrap_or_else(|e| error(l, &format!("failed to parse `{}' as a f32: {}", sy, e)[..]));
     // let z = z.unwrap_or_else(|| error(l, "failed to parse `" + sz + "' as a f32."));
 
-    Pnt2::new(x, y)
+    Point2::new(x, y)
 }
 
 fn parse_g<'a>(_:          usize,
                ws:         Words<'a>,
                prefix:     &str,
                groups:     &mut HashMap<String, usize>,
-               groups_ids: &mut Vec<Vec<Pnt3<usize>>>)
+               groups_ids: &mut Vec<Vec<Point3<usize>>>)
                -> usize {
     let suffix: Vec<&'a str> = ws.collect();
     let suffix = suffix.join(" ");
@@ -326,17 +326,17 @@ fn parse_g<'a>(_:          usize,
 fn reformat(coords:     Vec<Coord>,
             normals:    Option<Vec<Normal>>,
             uvs:        Option<Vec<UV>>,
-            groups_ids: Vec<Vec<Pnt3<usize>>>,
+            groups_ids: Vec<Vec<Point3<usize>>>,
             groups:     HashMap<String, usize>,
             group2mtl:  HashMap<usize, MtlMaterial>)
             -> Vec<(String, Mesh, Option<MtlMaterial>)> {
-    let mut vt2id:  HashMap<Pnt3<usize>, usize> = HashMap::new();
+    let mut vt2id:  HashMap<Point3<usize>, usize> = HashMap::new();
     let mut vertex_ids: Vec<usize>            = Vec::new();
     let mut resc: Vec<Coord>                = Vec::new();
     let mut resn: Option<Vec<Normal>>       = normals.as_ref().map(|_| Vec::new());
     let mut resu: Option<Vec<UV>>           = uvs.as_ref().map(|_| Vec::new());
-    let mut resfs: Vec<Vec<Pnt3<usize>>>      = Vec::new();
-    let mut allfs: Vec<Pnt3<usize>>           = Vec::new();
+    let mut resfs: Vec<Vec<Point3<usize>>>      = Vec::new();
+    let mut allfs: Vec<Point3<usize>>           = Vec::new();
     let mut names: Vec<String>              = Vec::new();
     let mut mtls:  Vec<Option<MtlMaterial>> = Vec::new();
 
@@ -369,8 +369,8 @@ fn reformat(coords:     Vec<Coord>,
         assert!(vertex_ids.len() % 3 == 0);
 
         for f in vertex_ids[..].chunks(3) {
-            resf.push(Pnt3::new(f[0], f[1], f[2]));
-            allfs.push(Pnt3::new(f[0], f[1], f[2]));
+            resf.push(Point3::new(f[0], f[1], f[2]));
+            allfs.push(Point3::new(f[0], f[1], f[2]));
         }
 
         resfs.push(resf);
@@ -379,7 +379,7 @@ fn reformat(coords:     Vec<Coord>,
 
     let resn = resn.unwrap_or_else(|| mesh::compute_normals_array(&resc[..], &allfs[..]));
     let resn = StorageLocation::SharedImmutable(Arc::new(resn));
-    let resu = resu.unwrap_or_else(|| repeat(na::orig()).take(resc.len()).collect());
+    let resu = resu.unwrap_or_else(|| repeat(na::origin()).take(resc.len()).collect());
     let resu = StorageLocation::SharedImmutable(Arc::new(resu));
     let resc = StorageLocation::SharedImmutable(Arc::new(resc));
 

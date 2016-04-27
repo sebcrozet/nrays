@@ -3,17 +3,17 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::sync::Arc;
 use stb_image::image::{self, LoadResult};
-use na::{Pnt2, Pnt4, Vec2};
+use na::{Point2, Point4, Vector2};
 use na;
 use math::Scalar;
 
 pub struct ImageData {
-    pixels: Vec<Pnt4<f32>>,
-    dims:   Vec2<usize>
+    pixels: Vec<Point4<f32>>,
+    dims:   Vector2<usize>
 }
 
 impl ImageData {
-    pub fn new(pixels: Vec<Pnt4<f32>>, dims: Vec2<usize>) -> ImageData {
+    pub fn new(pixels: Vec<Point4<f32>>, dims: Vector2<usize>) -> ImageData {
         assert!(pixels.len() == dims.x * dims.y);
         assert!(dims.x >= 1);
         assert!(dims.y >= 1);
@@ -111,15 +111,15 @@ impl Texture2d {
                                         let g = *p as f32 / 255.0;
 
                                         if opacity {
-                                            data.push(Pnt4::new(1.0, 1.0, 1.0, g));
+                                            data.push(Point4::new(1.0, 1.0, 1.0, g));
                                         }
                                         else {
-                                            data.push(Pnt4::new(g, g, g, 1.0));
+                                            data.push(Point4::new(g, g, g, 1.0));
                                         }
                                     }
 
                                     Some(Arc::new(ImageData::new(data,
-                                    Vec2::new(image.width as usize, image.height as usize))))
+                                    Vector2::new(image.width as usize, image.height as usize))))
                                 }
                                 else if image.depth == 2 {
                                     for p in image.data[..].chunks(2) {
@@ -127,15 +127,15 @@ impl Texture2d {
                                         let g = p[1] as f32 / 255.0;
 
                                         if opacity {
-                                            data.push(Pnt4::new(1.0, 1.0, 1.0, g * r));
+                                            data.push(Point4::new(1.0, 1.0, 1.0, g * r));
                                         }
                                         else {
-                                            data.push(Pnt4::new(r * g, r * g, r * g, 1.0));
+                                            data.push(Point4::new(r * g, r * g, r * g, 1.0));
                                         }
                                     }
 
                                     Some(Arc::new(ImageData::new(data,
-                                    Vec2::new(image.width as usize, image.height as usize))))
+                                    Vector2::new(image.width as usize, image.height as usize))))
                                 }
                                 else if image.depth == 3 {
                                     for p in image.data[..].chunks(3) {
@@ -144,15 +144,15 @@ impl Texture2d {
                                         let b = p[2] as f32 / 255.0;
 
                                         if opacity {
-                                            data.push(Pnt4::new(1.0, 1.0, 1.0, r));
+                                            data.push(Point4::new(1.0, 1.0, 1.0, r));
                                         }
                                         else {
-                                            data.push(Pnt4::new(r, g, b, 1.0));
+                                            data.push(Point4::new(r, g, b, 1.0));
                                         }
                                     }
 
                                     Some(Arc::new(ImageData::new(data,
-                                    Vec2::new(image.width as usize, image.height as usize))))
+                                    Vector2::new(image.width as usize, image.height as usize))))
                                 }
                                 else if image.depth == 4 {
                                     for p in image.data[..].chunks(4) {
@@ -162,15 +162,15 @@ impl Texture2d {
                                         let a = p[3] as f32 / 255.0;
 
                                         if opacity {
-                                            data.push(Pnt4::new(1.0, 1.0, 1.0, a));
+                                            data.push(Point4::new(1.0, 1.0, 1.0, a));
                                         }
                                         else {
-                                            data.push(Pnt4::new(r, g, b, 1.0));
+                                            data.push(Point4::new(r, g, b, 1.0));
                                         }
                                     }
 
                                     Some(Arc::new(ImageData::new(data,
-                                    Vec2::new(image.width as usize, image.height as usize))))
+                                    Vector2::new(image.width as usize, image.height as usize))))
                                 }
                                 else {
                                     panic!("Image depth {} not suported.", image.depth);
@@ -200,11 +200,11 @@ impl Texture2d {
         data.map(|data| Texture2d::new(data, interpolation, overflow))
     }
 
-    pub fn at<'a>(&'a self, x: usize, y: usize) -> &'a Pnt4<f32> {
+    pub fn at<'a>(&'a self, x: usize, y: usize) -> &'a Point4<f32> {
         &self.data.pixels[y * self.data.dims.x + x]
     }
 
-    pub fn sample(&self, coords: &Pnt2<Scalar>) -> Pnt4<f32> {
+    pub fn sample(&self, coords: &Point2<Scalar>) -> Point4<f32> {
         let mut ux: f32 = na::cast(coords.x);
         let mut uy: f32 = na::cast(coords.y);
 
@@ -247,10 +247,10 @@ impl Texture2d {
                 let dr = self.at(hig_ux, low_uy);
                 let dl = self.at(low_ux, low_uy);
 
-                let u_interpol = *ul * (1.0 - shift_ux) + *ur.as_vec() * shift_ux;
-                let d_interpol = *dl * (1.0 - shift_ux) + *dr.as_vec() * shift_ux;
+                let u_interpol = *ul * (1.0 - shift_ux) + *ur.as_vector() * shift_ux;
+                let d_interpol = *dl * (1.0 - shift_ux) + *dr.as_vector() * shift_ux;
 
-                u_interpol * shift_uy + *d_interpol.as_vec() * (1.0 - shift_uy)
+                u_interpol * shift_uy + *d_interpol.as_vector() * (1.0 - shift_uy)
             }
         }
     }
