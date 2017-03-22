@@ -39,11 +39,11 @@ impl Image {
 
         for i in 0 .. height {
             for j in 0 .. width {
-                let c:     Vector3<f32> = self.pixels[i * width + j].clone();
-                let color: Vector3<f32> = na::cast(c * 255.0f32);
-                let white            = Vector3::new(255.0, 255.0, 255.0);
-                let valid_color      = na::inf(&na::sup(&white, &color), &white);
-                let px: Vector3<usize>   = na::cast(valid_color);
+                let c     = self.pixels[i * width + j];
+                let color = c * 255.0f32;
+                let white = Vector3::from_element(255.0);
+                let valid_color = na::inf(&na::sup(&white, &color), &white);
+                let px  = Vector3::new(valid_color.x as usize, valid_color.y as usize, valid_color.z as usize);
 
                 let _ = w.write(format!("{}", px.x).as_bytes());
                 let _ = w.write(" ".as_bytes());
@@ -64,11 +64,11 @@ impl Image {
         let mut data: Vec<u8> = Vec::new();
         for i in 0 .. height {
             for j in 0 .. width {
-                let c:     Vector3<f32> = self.pixels[i * width + j].clone();
-                let color: Vector3<f32> = na::cast(c * 255.0f32);
-                let white            = Vector3::new(255.0, 255.0, 255.0);
-                let valid_color      = na::inf(&na::sup(&color, &na::zero()), &white);
-                let px: Vector3<usize>   = na::cast(valid_color);
+                let c     = self.pixels[i * width + j].clone();
+                let color = c * 255.0f32;
+                let white = Vector3::from_element(255.0);
+                let valid_color = na::inf(&na::sup(&color, &na::zero()), &white);
+                let px = Vector3::new(valid_color.x as usize, valid_color.y as usize, valid_color.z as usize);
 
                 data.push(px.x as u8);
                 data.push(px.y as u8);

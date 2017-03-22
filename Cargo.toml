@@ -8,11 +8,12 @@ name = "loader3d"
 path = "examples/loader3d.rs"
 
 [dependencies]
-ncollide = "*"
-nalgebra = "*"
-rand = "*"
-num = "*"
-num_cpus = "*"
+alga     = "0.5"
+ncollide = "0.11"
+nalgebra = "0.11"
+rand     = "0.3"
+num      = "0.1"
+num_cpus = "1.3"
 
 [dependencies.png]
 git = "https://github.com/servo/rust-png"
@@ -23,7 +24,3 @@ git = "https://github.com/servo/rust-stb-image"
 [lib]
 name = "nrays"
 path = "src/lib.rs"
-
-[features]
-default = [ "f64" ]
-f64     = []

@@ -10,8 +10,8 @@ impl Material for UVMaterial {
     fn ambiant(&self, _: &Point3<Scalar>, _: &Vector3<Scalar>, uv: &Option<Point2<Scalar>>) -> Point4<f32> {
         match *uv {
             Some(ref uvs) => {
-                let ux = na::cast(uvs.x);
-                let uy = na::cast(uvs.y);
+                let ux = uvs.x as f32;
+                let uy = uvs.y as f32;
 
                 Point4::new(ux, uy, na::zero(), 1.0)
             },

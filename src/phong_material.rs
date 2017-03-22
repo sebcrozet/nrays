@@ -1,6 +1,6 @@
-use na::{Point2, Point3, Point4, Vector3, Norm, Axpy};
+use na::{Point2, Point3, Point4, Vector3, Axpy};
 use na;
-use ncollide::ray::Ray;
+use ncollide::query::Ray;
 use math::{Scalar, Point, Vect};
 use ray_with_energy::RayWithEnergy;
 use scene::Scene;
@@ -98,46 +98,46 @@ impl Material for PhongMaterial {
         }
 
         let tex_color = Point3::new(tex_color.x, tex_color.y, tex_color.z);
-        res = *self.ambiant_color.as_vector() * *tex_color.as_vector();
+        res = self.ambiant_color.coords.component_mul(&tex_color.coords);
 
         // compute the contribution of each light
         for light in scene.lights().iter() {
             let mut acc = Vector3::new(0.0f32, 0.0, 0.0);
             light.sample(&mut |pos| {
                 let mut ldir = pos - *point;
-                let     dist = ldir.normalize_mut() - na::cast::<f64, Scalar>(0.001f64);
+                let     dist = ldir.normalize_mut() - 0.001f64;
 
-                match scene.intersects_ray(&Ray::new(*point + ldir * na::cast::<f32, Scalar>(0.001), ldir.clone()), dist) {
+                match scene.intersects_ray(&Ray::new(*point + ldir * 0.001, ldir.clone()), dist) {
                     None         => { },
                     Some(filter) => {
                         let dot_ldir_norm = na::dot(&ldir, normal);
 
                         // diffuse
-                        let dcoeff: f32   = na::cast(dot_ldir_norm.clone());
+                        let dcoeff: f32   = dot_ldir_norm as f32;
                         let dcoeff        = dcoeff.max(0.0);
-                        let diffuse_color = *self.diffuse_color.as_vector() * *tex_color.as_vector();
+                        let diffuse_color = self.diffuse_color.coords.component_mul(&tex_color.coords);
 
                         let diffuse = diffuse_color * dcoeff;
 
                         // specular
                         let lproj = *normal * dot_ldir_norm;
-                        let rldir = na::normalize(&(-ldir + lproj * na::cast::<f32, Scalar>(2.0)));
+                        let rldir = na::normalize(&(-ldir + lproj * 2.0));
 
-                        let scoeff: f32 = na::cast(-na::dot(&rldir, &ray.ray.dir));
+                        let scoeff = -na::dot(&rldir, &ray.ray.dir) as f32;
                         if scoeff > na::zero() {
                             let scoeff   = scoeff.clone().powf(self.shininess);
                             let specular = self.specular_color * scoeff;
 
-                            acc = acc + *light.color.as_vector() * filter * (diffuse + *specular.as_vector());
+                            acc = acc + light.color.coords.component_mul(&(filter.component_mul(&(diffuse + specular.coords))));
                         }
                         else {
-                            acc = acc + *light.color.as_vector() * filter * diffuse;
+                            acc = acc + light.color.coords.component_mul(&(filter.component_mul(&diffuse)));
                         }
                     }
                 }
             });
 
-            res.axpy(&( 1.0 / (light.racsample * light.racsample) as f32), &acc);
+            res.axpy(1.0 / (light.racsample * light.racsample) as f32, &acc);
         }
 
         Point4::new(res.x, res.y, res.z, alpha)

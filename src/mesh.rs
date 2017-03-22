@@ -196,11 +196,11 @@ pub fn compute_normals(coordinates: &[Coord],
     for f in faces.iter() {
         let edge1  = coordinates[f.y as usize] - coordinates[f.x as usize];
         let edge2  = coordinates[f.z as usize] - coordinates[f.x as usize];
-        let cross  = na::cross(&edge1, &edge2);
+        let cross  = edge1.cross(&edge2);
         let normal;
 
         if !cross.is_zero() {
-            normal = na::normalize(&cross)
+            normal = cross.normalize()
         }
         else {
             normal = cross

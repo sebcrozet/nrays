@@ -1,12 +1,9 @@
 use std::sync::Arc;
-use na::Transform;
-use ncollide::ray::{RayCast, Ray, RayIntersection};
+use ncollide::query::{RayCast, Ray, RayIntersection};
 use ncollide::bounding_volume::{AABB, HasBoundingVolume};
 use math::{Scalar, Point, Vect, Matrix};
 use material::Material;
 use texture2d::Texture2d;
-
-use na;
 
 pub struct SceneNode {
     pub refl_mix:        f32,
@@ -66,7 +63,7 @@ impl SceneNode {
                     let shift_color = nmap.sample(uvs);
                     let shift       = (shift_color.x + shift_color.y + shift_color.z) / 3.0;
 
-                    inter.toi = inter.toi - na::cast::<f32, Scalar>(shift);
+                    inter.toi = inter.toi - shift as f64;
                 }
 
                 Some(inter)

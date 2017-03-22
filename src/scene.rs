@@ -7,14 +7,13 @@ use na::{Point3, Point4, Vector2, Matrix4};
 use num_cpus;
 use num::Zero;
 use std::sync::Arc;
-use na::{Identity, Point2, Vector3};
+use na::{Id, Point2, Vector3};
 use na;
 use ncollide::bounding_volume::AABB;
 use ncollide::partitioning::{BVT, BVTCostFn};
 // use ncollide::partitioning::bvt_visitor::RayInterferencesCollector;
-use ncollide::ray::{Ray, RayIntersection, RayCast};
+use ncollide::query::{Ray, RayIntersection, RayCast};
 use math::{Scalar, Point, Vect};
-use material::Material;
 use ray_with_energy::RayWithEnergy;
 use scene_node::SceneNode;
 use image::Image;
@@ -37,8 +36,8 @@ pub fn render(scene:         &Arc<Scene>,
               -> Image {
     assert!(ray_per_pixel > 0);
 
-    let npixels: usize = na::cast(resolution.x * resolution.y);
-    let pixels         = iter::repeat(na::zero::<Vector3<f32>>()).take(npixels).collect();
+    let npixels = (resolution.x * resolution.y) as usize;
+    let pixels  = iter::repeat(na::zero::<Vector3<f32>>()).take(npixels).collect();
     let pixels: Arc<RwLock<Vec<Vector3<f32>>>> = Arc::new(RwLock::new(pixels));
 
     let nrays = resolution.y * resolution.x * (ray_per_pixel as f64);
@@ -70,8 +69,9 @@ pub fn render(scene:         &Arc<Scene>,
                 let mut tot_c: Vector3<f32> = na::zero();
 
                 for _ in 0usize .. ray_per_pixel {
-                    let perturbation  = (random::<Vless>() - na::cast::<f32, Scalar>(0.5)) * window_width;
-                    let orig: Vector2<Scalar> = Vector2::new(na::cast::<usize, Scalar>(i), na::cast::<usize, Scalar>(j)) + perturbation;
+                    let shift        = Vless::from_element(0.5);
+                    let perturbation = (random::<Vless>() - shift) * window_width;
+                    let orig         = Vector2::new(i as f64, j as f64) + perturbation;
 
                     /*
                      * unproject
@@ -80,7 +80,7 @@ pub fn render(scene:         &Arc<Scene>,
                     let device_y = -(orig.y / (resy as f64) - 0.5) * 2.0;
                     let start = Point4::new(device_x, device_y, -1.0, 1.0);
                     let h_eye = projection * start;
-                    let eye: Point3<f64> = na::from_homogeneous(&h_eye);
+                    let eye = Point3::from_homogeneous(h_eye.coords).unwrap();
                     let ray = Ray::new(camera_eye, na::normalize(&(eye - camera_eye)));
 
                     let c: Vector3<f32> = scene.trace(&RayWithEnergy::new(ray.origin.clone(), ray.dir));
@@ -88,7 +88,7 @@ pub fn render(scene:         &Arc<Scene>,
                     tot_c = tot_c + c;
                 }
 
-                pxs.push(tot_c / na::cast::<usize, f32>(ray_per_pixel));
+                pxs.push(tot_c / (ray_per_pixel as f32));
             }
 
             {
@@ -143,7 +143,7 @@ impl Scene {
 
 impl Scene {
     pub fn intersects_ray(&self, ray: &Ray<Point>, maxtoi: Scalar) -> Option<Vector3<f32>> {
-        let mut filter        = Vector3::new(1.0, 1.0, 1.0);
+        let mut filter = Vector3::new(1.0, 1.0, 1.0);
 
         let inter;
         {
@@ -190,12 +190,12 @@ impl Scene {
     fn trace_reflection(&self, mix: f32, attenuation: f32, ray: &RayWithEnergy, pt: &Point, normal: &Vect) -> Vector3<f32> {
         if !mix.is_zero() && ray.energy > 0.1 {
             let nproj      = *normal * na::dot(&ray.ray.dir, normal);
-            let rdir       = ray.ray.dir - nproj * na::cast::<f32, Scalar>(2.0);
+            let rdir       = ray.ray.dir - nproj * 2.0;
             let new_energy = ray.energy - attenuation;
 
             self.trace(
                 &RayWithEnergy::new_with_energy(
-                    *pt + rdir * na::cast::<f32, Scalar>(0.001),
+                    *pt + rdir * 0.001,
                     rdir,
                     ray.refr.clone(),
                     new_energy))
@@ -211,13 +211,13 @@ impl Scene {
             let n1;
             let n2;
 
-            if ray.refr == na::cast(1.0f64) {
-                n1 = na::cast(1.0f64);
+            if ray.refr == 1.0 {
+                n1 = 1.0;
                 n2 = coeff;
             }
             else {
                 n1 = coeff;
-                n2 = na::cast(1.0f64);
+                n2 = 1.0;
             }
 
             let dir_along_normal = *normal * na::dot(&ray.ray.dir, normal);
@@ -256,7 +256,7 @@ impl<'a> BVTCostFn<Scalar, Arc<SceneNode>, AABB<Point>> for ClosestRayTOICostFn<
 
     #[inline]
     fn compute_bv_cost(&mut self, bv: &AABB<Point>) -> Option<Scalar> {
-        bv.toi_with_ray(&Identity::new(), self.ray, true)
+        bv.toi_with_ray(&Id::new(), self.ray, true)
     }
 
     #[inline]
@@ -288,7 +288,7 @@ for TransparentShadowsRayTOICostFn<'a> {
 
     #[inline]
     fn compute_bv_cost(&mut self, bv: &AABB<Point>) -> Option<Scalar> {
-        bv.toi_with_ray(&Identity::new(), self.ray, true)
+        bv.toi_with_ray(&Id::new(), self.ray, true)
     }
 
     #[inline]
@@ -300,7 +300,8 @@ for TransparentShadowsRayTOICostFn<'a> {
                     let alpha = color.w * b.alpha;
 
                     if alpha < 1.0 {
-                        *self.filter = *self.filter * Vector3::new(color.x, color.y, color.z) * (1.0 - alpha);
+                        let rgb = Vector3::new(color.x, color.y, color.z);
+                        *self.filter = self.filter.component_mul(&rgb) * (1.0 - alpha);
 
                         None
                     }

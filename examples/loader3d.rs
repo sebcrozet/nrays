@@ -1,6 +1,7 @@
 #![warn(non_camel_case_types)]
 
 extern crate png;
+extern crate alga;
 extern crate nalgebra as na;
 extern crate ncollide;
 extern crate nrays;
@@ -14,10 +15,12 @@ use std::mem;
 use std::str::SplitWhitespace;
 use std::collections::HashMap;
 use std::sync::Arc;
-use na::{Point2, Point3, Vector2, Vector3, Isometry3, Perspective3, Translate};
+use alga::linear::ProjectiveTransformation;
+use na::{Point2, Point3, Vector2, Vector3, Isometry3, Perspective3};
 use ncollide::bounding_volume::{AABB, HasBoundingVolume, support_map_aabb};
 use ncollide::shape::{SupportMap, Plane, Ball, Cone, Cylinder, Capsule, Cuboid, TriMesh};
-use ncollide::ray::{Ray3, RayCast, RayIntersection3, implicit_toi_and_normal_with_ray};
+use ncollide::query::{Ray3, RayCast, RayIntersection3};
+use ncollide::query::ray_internal;
 use ncollide::query::algorithms::johnson_simplex::JohnsonSimplex;
 use nrays::scene_node::SceneNode;
 use nrays::material::Material;
@@ -59,7 +62,7 @@ fn main() {
     let nnodes    = nodes.len();
     let nlights   = lights.len();
     let ncams     = cameras.len();
-    let scene = Arc::new(Scene::new(nodes, lights, na::one()));
+    let scene = Arc::new(Scene::new(nodes, lights, Vector3::from_element(1.0)));
     println!("Scene loaded. {} lights, {} objects, {} cameras.", nlights, nnodes, ncams);
 
     for c in cameras.into_iter() {
@@ -67,11 +70,11 @@ fn main() {
             c.resolution.x / c.resolution.y,
             c.fovy.to_radians(),
             1.0,
-            100000.0).to_matrix();
+            100000.0).unwrap();
 
         let camera = Isometry3::<f64>::look_at_rh(&c.eye, &c.at, &Vector3::y());
 
-        let projection = na::inverse(&(perspective * na::to_homogeneous(&camera))).unwrap();
+        let projection = (perspective * camera.to_homogeneous()).try_inverse().unwrap();
 
         println!("Casting {} rays per pixels (win. {}).", c.aa.x as usize, c.aa.y);
 
@@ -236,11 +239,11 @@ fn parse(string: &str) -> (Vec<Light>, Vec<Arc<SceneNode>>, Vec<Camera>) {
                             mode  = Mode::CameraMode;
                         },
                         // common attributes
-                        "color"      => props.color      = Some((l, parse_triplet(l, words).translate(&na::origin()))),
+                        "color"      => props.color      = Some((l, Point3::from_coordinates(parse_triplet(l, words)))),
                         "angle"      => props.angle      = Some((l, parse_triplet(l, words))),
-                        "pos"        => props.pos        = Some((l, parse_triplet(l, words).translate(&na::origin()))),
-                        "eye"        => props.eye        = Some((l, parse_triplet(l, words).translate(&na::origin()))),
-                        "at"         => props.at         = Some((l, parse_triplet(l, words).translate(&na::origin()))),
+                        "pos"        => props.pos        = Some((l, Point3::from_coordinates(parse_triplet(l, words)))),
+                        "eye"        => props.eye        = Some((l, Point3::from_coordinates(parse_triplet(l, words)))),
+                        "at"         => props.at         = Some((l, Point3::from_coordinates(parse_triplet(l, words)))),
                         "material"   => props.material   = Some((l, parse_name(l, words))),
                         "fovy"       => props.fovy       = Some((l, parse_number(l, words))),
                         "output"     => props.output     = Some((l, parse_name(l, words))),
@@ -379,7 +382,7 @@ fn register_light(props: Properties, lights: &mut Vec<Light>) {
     let radius  = props.radius.unwrap_or((props.superbloc, 0.0)).1;
     let nsample = props.nsample.unwrap_or((props.superbloc, 1.0)).1;
     let pos     = props.pos.unwrap().1;
-    let color: Point3<f32> = na::cast(props.color.unwrap().1);
+    let color: Point3<f32> = na::convert(props.color.unwrap().1);
     let light   = Light::new(pos, radius, nsample as usize, color);
 
     lights.push(light);
@@ -456,7 +459,7 @@ fn register_geometry(props:  Properties,
         angle.y = angle.y.to_radians();
         angle.z = angle.z.to_radians();
 
-        transform = Isometry3::new(pos.to_vector(), angle);
+        transform = Isometry3::new(pos.coords, angle);
         normals   = None;
 
         let refl_param = props.refl.unwrap_or((props.superbloc, Vector2::new(0.0, 0.0))).1;
@@ -703,18 +706,19 @@ impl HasBoundingVolume<Matrix, AABB<Point>> for MinkowksiSum {
 impl SupportMap<Point, Matrix> for MinkowksiSum {
     fn support_point(&self, transform: &Matrix, dir: &Vect) -> Point {
         let mut pt  = na::origin::<Point>();
-        let new_dir = na::inverse_rotate(transform, dir);
+        let new_dir = transform.inverse_transform_vector(dir);
 
         for i in self.geoms.iter() {
-            pt = pt + i.support_point(&na::one(), &new_dir).to_vector()
+            pt = pt + i.support_point(&na::one(), &new_dir).coords
         }
 
-        na::transform(transform, &pt)
+        transform * pt
     }
 }
 
 impl RayCast<Point, Matrix> for MinkowksiSum {
     fn toi_and_normal_with_ray(&self, m: &Matrix, ray: &Ray3<f64>, solid: bool) -> Option<RayIntersection3<f64>> {
-        implicit_toi_and_normal_with_ray(m, self, &mut JohnsonSimplex::<Point>::new_w_tls(), ray, solid)
+        ray_internal::implicit_toi_and_normal_with_ray(
+            m, self, &mut JohnsonSimplex::<Point>::new_w_tls(), ray, solid)
     }
 }

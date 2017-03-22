@@ -30,11 +30,6 @@ pub mod math {
     use na::{Point3, Vector3, Matrix3, Rotation3, Isometry3};
 
     /// The scalar type.
-    #[cfg(feature = "f32")]
-    pub type Scalar = f32;
-
-    /// The scalar type.
-    #[cfg(feature = "f64")]
     pub type Scalar = f64;
 
     /// The point type.

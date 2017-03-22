@@ -205,8 +205,8 @@ impl Texture2d {
     }
 
     pub fn sample(&self, coords: &Point2<Scalar>) -> Point4<f32> {
-        let mut ux: f32 = na::cast(coords.x);
-        let mut uy: f32 = na::cast(coords.y);
+        let mut ux = coords.x as f32;
+        let mut uy = coords.y as f32;
 
         match self.overflow {
             Overflow::ClampToEdges => {
@@ -247,10 +247,10 @@ impl Texture2d {
                 let dr = self.at(hig_ux, low_uy);
                 let dl = self.at(low_ux, low_uy);
 
-                let u_interpol = *ul * (1.0 - shift_ux) + *ur.as_vector() * shift_ux;
-                let d_interpol = *dl * (1.0 - shift_ux) + *dr.as_vector() * shift_ux;
+                let u_interpol = *ul * (1.0 - shift_ux) + ur.coords * shift_ux;
+                let d_interpol = *dl * (1.0 - shift_ux) + dr.coords * shift_ux;
 
-                u_interpol * shift_uy + *d_interpol.as_vector() * (1.0 - shift_uy)
+                u_interpol * shift_uy + d_interpol.coords * (1.0 - shift_uy)
             }
         }
     }

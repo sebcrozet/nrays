@@ -1,5 +1,4 @@
-use na;
-use ncollide::ray::Ray;
+use ncollide::query::Ray;
 use math::{Scalar, Point, Vect};
 
 pub struct RayWithEnergy {
@@ -10,7 +9,7 @@ pub struct RayWithEnergy {
 
 impl RayWithEnergy {
     pub fn new(orig: Point, dir: Vect) -> RayWithEnergy {
-        RayWithEnergy::new_with_energy(orig, dir, na::cast(1.0f64), 1.0)
+        RayWithEnergy::new_with_energy(orig, dir, 1.0, 1.0)
     }
 
     pub fn new_with_energy(orig: Point, dir: Vect, refr: Scalar, energy: f32) -> RayWithEnergy {

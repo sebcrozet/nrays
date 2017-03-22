@@ -28,13 +28,13 @@ impl Light {
     pub fn sample<T, F: FnMut(Point) -> T>(&self, f: &mut F) {
         for i in 0usize .. self.racsample {
             for j in 0usize .. self.racsample {
-                let iracsample: Scalar = na::one::<Scalar>() / na::cast::<usize, Scalar>(self.racsample);
+                let iracsample: Scalar = 1.0 / (self.racsample as f64);
                 let pi: Scalar         = BaseFloat::pi();
                 let parttheta: Scalar  = iracsample * pi;
                 let partphi: Scalar    = iracsample * (pi + pi);
 
-                let phi: Scalar   = (random::<Scalar>() + na::cast::<usize, Scalar>(i)) * partphi;
-                let theta: Scalar = (random::<Scalar>() + na::cast::<usize, Scalar>(j)) * parttheta;
+                let phi: Scalar   = (random::<f64>() + i as f64) * partphi;
+                let theta: Scalar = (random::<f64>() + j as f64) * parttheta;
 
                 let mut v = na::zero::<Vect>();
 
