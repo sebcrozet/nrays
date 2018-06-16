@@ -2,11 +2,11 @@ nrays
 =====
 
 **nrays** is an attempt to make a 3 and 4 dimensional ray tracer in Rust.
-It uses the [ncollide](http://ncollide.org) library to cast rays.
+It uses the [ncollide3d](http://ncollide3d.org) library to cast rays.
 
 ## 3d ray tracing
 The current implementation handles phong lighting and reflexions. Nothing fancy here. It supports
-the same geometries as **ncollide**, that is, plane, box, sphere, cylinder, cone, and Minkowski sum
+the same geometries as **ncollide3d**, that is, plane, box, sphere, cylinder, cone, and Minkowski sum
 of any supported convex objects. Triangle meshes are not yet supported. Here is an example of 3d ray
 casting on the Minkowski sum of a cylinder and a box:
 

@@ -13,7 +13,7 @@ path = "../../src/lib.rs"
 
 [dependencies]
 nalgebra = "*"
-ncollide = "*"
+ncollide3d = "*"
 rand = "*"
 num = "*"
 num_cpus = "*"

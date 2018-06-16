@@ -3,3 +3,7 @@
 bin/sphere3d
 bin/sphere4d
 *.so
+target
+scenes/media
+scenes/*.png
+.DS_Store
